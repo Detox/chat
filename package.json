@@ -1,0 +1,28 @@
+{
+	"name"            : "@detox/chat",
+	"description"     : "",
+	"keywords"        : [],
+	"version"         : "",
+	"homepage"        : "https://github.com/Detox/chat",
+	"author"          : "Nazar Mokrynskyi <nazar@mokrynskyi.com>",
+	"repository"      : {
+		"type" : "git",
+		"url"  : "git://github.com/Detox/chat.git"
+	},
+	"license"         : "0BSD",
+	"main"            : "src/index.js",
+	"files"           : [
+		"src"
+	],
+	"scripts"         : {
+		"test" : "tape tests/**/*.js"
+	},
+	"dependencies"    : {
+		"@detox/crypto" : "^0.4.0",
+		"@detox/core"   : "^0.2.2"
+	},
+	"devDependencies" : {
+		"build-gc" : "^0.1.1",
+		"tape"     : "^4.8.0"
+	}
+}
