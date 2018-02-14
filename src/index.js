@@ -5,43 +5,124 @@
  * @license 0BSD
  */
 (function(){
+  var APPLICATION, APPLICATION_STRING;
+  APPLICATION = Uint8Array.of(100, 101, 116, 111, 120, 45, 99, 104, 97, 116, 45, 118, 48);
+  APPLICATION_STRING = APPLICATION.join(',');
+  /**
+   * @param {string}		string
+   * @param {!Uint8Array}	array
+   *
+   * @return {boolean}
+   */
+  function is_string_equal_to_array(string, array){
+    return string === array.join(',');
+  }
   function Wrapper(detoxCore, detoxCrypto, fixedSizeMultiplexer, asyncEventer){
     /**
      * @constructor
      *
-     * @param {!Object}		core_instance	Detox core instance
-     * @param {Uint8Array=}	real_key_seed	Seed used to generate real long-term keypair (if not specified - random one is used)
+     * @param {!Object}		core_instance					Detox core instance
+     * @param {Uint8Array=}	real_key_seed					Seed used to generate real long-term keypair (if not specified - random one is used)
+     * @param {number=}		number_of_introduction_nodes	Number of introduction nodes used for announcement to the network
+     * @param {number=}		number_of_intermediate_nodes	How many hops should be made when making connections
      *
      * @return {!Chat}
      */
-    function Chat(core_instance, real_key_seed){
+    function Chat(core_instance, real_key_seed, number_of_introduction_nodes, number_of_intermediate_nodes){
+      var this$ = this;
       real_key_seed == null && (real_key_seed = null);
+      number_of_introduction_nodes == null && (number_of_introduction_nodes = 3);
+      number_of_intermediate_nodes == null && (number_of_intermediate_nodes = 3);
       if (!(this instanceof Chat)) {
-        return new Chat(core_instance, real_key_seed);
+        return new Chat(core_instance, real_key_seed, number_of_introduction_nodes, number_of_intermediate_nodes);
       }
       asyncEventer.call(this);
       this._core_instance = core_instance;
       this._real_key_seed = real_key_seed || detoxCore['generate_seed']();
+      this._real_keypair = detoxCore['create_keypair'](this._real_key_seed);
+      this._real_public_key_string = this._real_keypair['ed25519']['public'].join(',');
+      this._number_of_introduction_nodes = number_of_introduction_nodes;
+      this._number_of_intermediate_nodes = number_of_intermediate_nodes;
+      this._core_instance['once']('announced', function(real_public_key){
+        if (!this$._is_current_chat(real_public_key)) {
+          return;
+        }
+        this$['fire']('announced');
+      })['on']('connected', function(real_public_key, target_id){
+        if (!this$._is_current_chat(real_public_key)) {
+          return;
+        }
+        this$['fire']('connected', target_id);
+      })['on']('connection_progress', function(real_public_key, target_id, stage){
+        if (!this$._is_current_chat(real_public_key)) {
+          return;
+        }
+        this$['fire']('connection_progress', target_id, stage);
+      })['on']('connection_failed', function(real_public_key, target_id, reason){
+        if (!this$._is_current_chat(real_public_key)) {
+          return;
+        }
+        this$['fire']('connection_failed', target_id, reason);
+      })['on']('disconnected', function(real_public_key, target_id){
+        if (!this$._is_current_chat(real_public_key)) {
+          return;
+        }
+        this$['fire']('disconnected', target_id);
+      })['on']('introduction', function(data){
+        if (!(this$._is_current_chat(real_public_key) && is_string_equal_to_array(APPLICATION_STRING, data['application'].subarray(0, APPLICATION.length)))) {
+          return;
+        }
+        this$['fire']('introduction', data['target_id'], data['secret']).then(function(){
+          data['number_of_intermediate_nodes'] = Math.max(this$._number_of_intermediate_nodes - 1, 1);
+        });
+      })['on']('data', function(real_public_key, target_id, received_command, received_data){
+        if (!this$._is_current_chat(real_public_key)) {
+          return;
+        }
+      });
     }
+    Cache['CONNECTION_ERROR_CANT_FIND_INTRODUCTION_NODES'] = detoxCore['CONNECTION_ERROR_CANT_FIND_INTRODUCTION_NODES'];
+    Cache['CONNECTION_ERROR_NOT_ENOUGH_INTERMEDIATE_NODES'] = detoxCore['CONNECTION_ERROR_NOT_ENOUGH_INTERMEDIATE_NODES'];
+    Cache['CONNECTION_ERROR_NO_INTRODUCTION_NODES'] = detoxCore['CONNECTION_ERROR_NO_INTRODUCTION_NODES'];
+    Cache['CONNECTION_ERROR_CANT_CONNECT_TO_RENDEZVOUS_POINT'] = detoxCore['CONNECTION_ERROR_CANT_CONNECT_TO_RENDEZVOUS_POINT'];
+    Cache['CONNECTION_ERROR_OUT_OF_INTRODUCTION_NODES'] = detoxCore['CONNECTION_ERROR_OUT_OF_INTRODUCTION_NODES'];
+    Cache['CONNECTION_PROGRESS_CONNECTED_TO_RENDEZVOUS_NODE'] = detoxCore['CONNECTION_PROGRESS_CONNECTED_TO_RENDEZVOUS_NODE'];
+    Cache['CONNECTION_PROGRESS_FOUND_INTRODUCTION_NODES'] = detoxCore['CONNECTION_PROGRESS_FOUND_INTRODUCTION_NODES'];
+    Cache['CONNECTION_PROGRESS_INTRODUCTION_SENT'] = detoxCore['CONNECTION_PROGRESS_INTRODUCTION_SENT'];
     Chat.prototype = {
       /**
        * Announce itself to the network (can operate without announcement)
-       *
-       * @param {number}	number_of_introduction_nodes
-       * @param {number}	number_of_intermediate_nodes	How many hops should be made until introduction node (not including it)
        */
-      'announce': function(number_of_introduction_nodes, number_of_intermediate_nodes){
+      'announce': function(){
         if (this._announced || this._destroyed) {
           return;
         }
         this._announced = true;
-        this._core_instance['announce'](this._real_key_seed, number_of_introduction_nodes, number_of_intermediate_nodes);
+        this._core_instance['announce'](this._real_key_seed, this._number_of_introduction_nodes, Math.max(this._number_of_intermediate_nodes - 1, 1));
+      }
+      /**
+       * @param {!Uint8Array} friend_id	Ed25519 public key of a friend
+       * @param {!uint8Array} secret		Secret used for connection to a friend
+       */,
+      'connect_to': function(friend_id, secret){
+        if (this._destroyed) {
+          return;
+        }
+        this._core_instance['connect_to'](this._real_key_seed, friend_id, APPLICATION, secret, this._number_of_intermediate_nodes);
       },
       'destroy': function(){
         if (this._destroyed) {
           return;
         }
         this._destroyed = true;
+      }
+      /**
+       * @param {!Uint8Array} real_public_key
+       *
+       * @return {boolean}
+       */,
+      _is_current_chat: function(real_public_key){
+        return is_string_equal_to_array(this._real_public_key_string, real_public_key);
       }
     };
     Chat.prototype = Object.assign(Object.create(asyncEventer.prototype), Chat.prototype);
