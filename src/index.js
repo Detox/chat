@@ -43,31 +43,34 @@
       this._real_public_key_string = this._real_keypair['ed25519']['public'].join(',');
       this._number_of_introduction_nodes = number_of_introduction_nodes;
       this._number_of_intermediate_nodes = number_of_intermediate_nodes;
+      this._connected_nodes = new Map;
       this._core_instance['once']('announced', function(real_public_key){
         if (!this$._is_current_chat(real_public_key)) {
           return;
         }
         this$['fire']('announced');
-      })['on']('connected', function(real_public_key, target_id){
+      })['on']('connected', function(real_public_key, friend_id){
         if (!this$._is_current_chat(real_public_key)) {
           return;
         }
-        this$['fire']('connected', target_id);
-      })['on']('connection_progress', function(real_public_key, target_id, stage){
+        this$._connected_nodes.set(friend_id.join(','), friend_id);
+        this$['fire']('connected', friend_id);
+      })['on']('connection_progress', function(real_public_key, friend_id, stage){
         if (!this$._is_current_chat(real_public_key)) {
           return;
         }
-        this$['fire']('connection_progress', target_id, stage);
-      })['on']('connection_failed', function(real_public_key, target_id, reason){
+        this$['fire']('connection_progress', friend_id, stage);
+      })['on']('connection_failed', function(real_public_key, friend_id, reason){
         if (!this$._is_current_chat(real_public_key)) {
           return;
         }
-        this$['fire']('connection_failed', target_id, reason);
-      })['on']('disconnected', function(real_public_key, target_id){
+        this$['fire']('connection_failed', friend_id, reason);
+      })['on']('disconnected', function(real_public_key, friend_id){
         if (!this$._is_current_chat(real_public_key)) {
           return;
         }
-        this$['fire']('disconnected', target_id);
+        this$._connected_nodes['delete'](friend_id.join(','));
+        this$['fire']('disconnected', friend_id);
       })['on']('introduction', function(data){
         if (!(this$._is_current_chat(real_public_key) && is_string_equal_to_array(APPLICATION_STRING, data['application'].subarray(0, APPLICATION.length)))) {
           return;
@@ -75,7 +78,7 @@
         this$['fire']('introduction', data['target_id'], data['secret']).then(function(){
           data['number_of_intermediate_nodes'] = Math.max(this$._number_of_intermediate_nodes - 1, 1);
         });
-      })['on']('data', function(real_public_key, target_id, received_command, received_data){
+      })['on']('data', function(real_public_key, friend_id, received_command, received_data){
         if (!this$._is_current_chat(real_public_key)) {
           return;
         }
@@ -105,11 +108,12 @@
        * @param {!uint8Array} secret		Secret used for connection to a friend
        */,
       'connect_to': function(friend_id, secret){
-        if (this._destroyed) {
+        if (this._destroyed || this._connected_nodes.has(friend_id.join(','))) {
           return;
         }
         this._core_instance['connect_to'](this._real_key_seed, friend_id, APPLICATION, secret, this._number_of_intermediate_nodes);
       },
+      'send_to': function(friend_id){},
       'destroy': function(){
         if (this._destroyed) {
           return;

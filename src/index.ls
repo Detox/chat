@@ -39,31 +39,35 @@ function Wrapper (detox-core, detox-crypto, fixed-size-multiplexer, async-evente
 		@_number_of_introduction_nodes	= number_of_introduction_nodes
 		@_number_of_intermediate_nodes	= number_of_intermediate_nodes
 
+		@_connected_nodes				= new Map
+
 		@_core_instance
 			.'once'('announced', (real_public_key) !~>
 				if !@_is_current_chat(real_public_key)
 					return
 				@'fire'('announced')
 			)
-			.'on'('connected', (real_public_key, target_id) !~>
+			.'on'('connected', (real_public_key, friend_id) !~>
 				if !@_is_current_chat(real_public_key)
 					return
-				@'fire'('connected', target_id)
+				@_connected_nodes.set(friend_id.join(','), friend_id)
+				@'fire'('connected', friend_id)
 			)
-			.'on'('connection_progress', (real_public_key, target_id, stage) !~>
+			.'on'('connection_progress', (real_public_key, friend_id, stage) !~>
 				if !@_is_current_chat(real_public_key)
 					return
-				@'fire'('connection_progress', target_id, stage)
+				@'fire'('connection_progress', friend_id, stage)
 			)
-			.'on'('connection_failed', (real_public_key, target_id, reason) !~>
+			.'on'('connection_failed', (real_public_key, friend_id, reason) !~>
 				if !@_is_current_chat(real_public_key)
 					return
-				@'fire'('connection_failed', target_id, reason)
+				@'fire'('connection_failed', friend_id, reason)
 			)
-			.'on'('disconnected', (real_public_key, target_id) !~>
+			.'on'('disconnected', (real_public_key, friend_id) !~>
 				if !@_is_current_chat(real_public_key)
 					return
-				@'fire'('disconnected', target_id)
+				@_connected_nodes.delete(friend_id.join(','))
+				@'fire'('disconnected', friend_id)
 			)
 			.'on'('introduction', (data) !~>
 				if !(
@@ -75,7 +79,7 @@ function Wrapper (detox-core, detox-crypto, fixed-size-multiplexer, async-evente
 					.then !~>
 						data['number_of_intermediate_nodes']	= Math.max(@_number_of_intermediate_nodes - 1, 1)
 			)
-			.'on'('data', (real_public_key, target_id, received_command, received_data) !~>
+			.'on'('data', (real_public_key, friend_id, received_command, received_data) !~>
 				if !@_is_current_chat(real_public_key)
 					return
 				#TODO
@@ -110,7 +114,7 @@ function Wrapper (detox-core, detox-crypto, fixed-size-multiplexer, async-evente
 		 * @param {!uint8Array} secret		Secret used for connection to a friend
 		 */
 		'connect_to' : (friend_id, secret) !->
-			if @_destroyed
+			if @_destroyed || @_connected_nodes.has(friend_id.join(','))
 				return
 			@_core_instance['connect_to'](
 				@_real_key_seed
@@ -119,6 +123,8 @@ function Wrapper (detox-core, detox-crypto, fixed-size-multiplexer, async-evente
 				secret
 				@_number_of_intermediate_nodes
 			)
+		'send_to' : (friend_id) !->
+			# TODO
 		# TODO: The rest of methods
 		'destroy' : !->
 			if @_destroyed
