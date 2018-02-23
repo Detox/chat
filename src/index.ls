@@ -4,15 +4,18 @@
  * @license 0BSD
  */
 const COMMAND_DIRECT_CONNECTION_SDP	= 0
-const COMMAND_SECRET_UPDATE			= 1
+const COMMAND_SECRET				= 1
 const COMMAND_NICKNAME				= 2
 const COMMAND_TEXT_MESSAGE			= 3
 const COMMAND_TEXT_MESSAGE_RECEIVED	= 4
+
+const ID_LENGTH	= 32
 
 # TODO: Separate set of commands for direct connections (chat, file transfers, calls, etc.)
 
 function Wrapper (detox-core, detox-crypto, detox-utils, fixed-size-multiplexer, async-eventer)
 	string2array		= detox-utils['string2array']
+	array2string		= detox-utils['array2string']
 	are_arrays_equal	= detox-utils['are_arrays_equal']
 	ArraySet			= detox-utils['ArraySet']
 
@@ -22,21 +25,20 @@ function Wrapper (detox-core, detox-crypto, detox-utils, fixed-size-multiplexer,
 	 *
 	 * @param {!Object}		core_instance					Detox core instance
 	 * @param {Uint8Array=}	real_key_seed					Seed used to generate real long-term keypair (if not specified - random one is used)
-	 * @param {string=}		nickname						User nickname that will be shown to the friend
 	 * @param {number=}		number_of_introduction_nodes	Number of introduction nodes used for announcement to the network
 	 * @param {number=}		number_of_intermediate_nodes	How many hops should be made when making connections
 	 *
 	 * @return {!Chat}
 	 */
-	!function Chat (core_instance, real_key_seed = null, name = '', number_of_introduction_nodes = 3, number_of_intermediate_nodes = 3)
+	!function Chat (core_instance, real_key_seed = null, number_of_introduction_nodes = 3, number_of_intermediate_nodes = 3)
 		if !(@ instanceof Chat)
-			return new Chat(core_instance, real_key_seed, name, number_of_introduction_nodes, number_of_intermediate_nodes)
+			return new Chat(core_instance, real_key_seed, number_of_introduction_nodes, number_of_intermediate_nodes)
 		async-eventer.call(@)
 
 		@_core_instance					= core_instance
 		@_real_key_seed					= real_key_seed || detox-core['generate_seed']()
 		@_real_keypair					= detox-core['create_keypair'](@_real_key_seed)
-		@_nickname						= string2array(nickname)
+		@_real_public_key				= @_real_keypair['ed25519']['public']
 		@_number_of_introduction_nodes	= number_of_introduction_nodes
 		@_number_of_intermediate_nodes	= number_of_intermediate_nodes
 
@@ -83,7 +85,13 @@ function Wrapper (detox-core, detox-crypto, detox-utils, fixed-size-multiplexer,
 			.'on'('data', (real_public_key, friend_id, received_command, received_data) !~>
 				if !@_is_current_chat(real_public_key)
 					return
-				#TODO
+				switch received_command
+					case COMMAND_NICKNAME
+						@'fire'('nickname', friend_id, array2string(received_data), received_data)
+					case COMMAND_SECRET
+						if received_data.length != ID_LENGTH
+							return
+						@'fire'('secret', friend_id, received_data)
 			)
 		# TODO
 
@@ -124,6 +132,22 @@ function Wrapper (detox-core, detox-crypto, detox-utils, fixed-size-multiplexer,
 				secret
 				@_number_of_intermediate_nodes
 			)
+		/**
+		 * @param {!Uint8Array}	friend_id	Ed25519 public key of a friend
+		 * @param {string|!Uint8Array}	nickname	Nickname as string or Uint8Array to be sent to a friend
+		 */
+		'nickname' : (friend_id, nickname) !->
+			if typeof nickname == 'string'
+				nickname	= string2array(nickname)
+			@_send(friend_id, COMMAND_NICKNAME, nickname)
+		/**
+		 * @param {!Uint8Array} friend_id	Ed25519 public key of a friend
+		 * @param {!Uint8Array} secret		Personal secret to be used by a friend on next connection
+		 */
+		'secret' : (friend_id, secret) !->
+			secret_to_send	= new Uint8Array(ID_LENGTH)
+				..set(secret)
+			@_send(friend_id, COMMAND_SECRET, secret_to_send)
 		'send_to' : (friend_id) !->
 			# TODO
 		# TODO: The rest of methods
@@ -137,7 +161,14 @@ function Wrapper (detox-core, detox-crypto, detox-utils, fixed-size-multiplexer,
 		 * @return {boolean}
 		 */
 		_is_current_chat : (real_public_key) ->
-			are_arrays_equal(@_real_keypair['ed25519']['public'], real_public_key)
+			are_arrays_equal(@_real_public_key, real_public_key)
+		/**
+		 * @param {!Uint8Array}	friend_id
+		 * @param {number}		command
+		 * @param {!Uint8Array}	data
+		 */
+		_send : (friend_id, command, data) !->
+			@_core_instance['send_to'](@_real_public_key, friend_id, command, data)
 
 	Chat:: = Object.assign(Object.create(async-eventer::), Chat::)
 

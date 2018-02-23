@@ -5,15 +5,17 @@
  * @license 0BSD
  */
 (function(){
-  var COMMAND_DIRECT_CONNECTION_SDP, COMMAND_SECRET_UPDATE, COMMAND_NICKNAME, COMMAND_TEXT_MESSAGE, COMMAND_TEXT_MESSAGE_RECEIVED;
+  var COMMAND_DIRECT_CONNECTION_SDP, COMMAND_SECRET, COMMAND_NICKNAME, COMMAND_TEXT_MESSAGE, COMMAND_TEXT_MESSAGE_RECEIVED, ID_LENGTH;
   COMMAND_DIRECT_CONNECTION_SDP = 0;
-  COMMAND_SECRET_UPDATE = 1;
+  COMMAND_SECRET = 1;
   COMMAND_NICKNAME = 2;
   COMMAND_TEXT_MESSAGE = 3;
   COMMAND_TEXT_MESSAGE_RECEIVED = 4;
+  ID_LENGTH = 32;
   function Wrapper(detoxCore, detoxCrypto, detoxUtils, fixedSizeMultiplexer, asyncEventer){
-    var string2array, are_arrays_equal, ArraySet, APPLICATION;
+    var string2array, array2string, are_arrays_equal, ArraySet, APPLICATION;
     string2array = detoxUtils['string2array'];
+    array2string = detoxUtils['array2string'];
     are_arrays_equal = detoxUtils['are_arrays_equal'];
     ArraySet = detoxUtils['ArraySet'];
     APPLICATION = string2array('detox-chat-v0');
@@ -22,26 +24,24 @@
      *
      * @param {!Object}		core_instance					Detox core instance
      * @param {Uint8Array=}	real_key_seed					Seed used to generate real long-term keypair (if not specified - random one is used)
-     * @param {string=}		nickname						User nickname that will be shown to the friend
      * @param {number=}		number_of_introduction_nodes	Number of introduction nodes used for announcement to the network
      * @param {number=}		number_of_intermediate_nodes	How many hops should be made when making connections
      *
      * @return {!Chat}
      */
-    function Chat(core_instance, real_key_seed, name, number_of_introduction_nodes, number_of_intermediate_nodes){
+    function Chat(core_instance, real_key_seed, number_of_introduction_nodes, number_of_intermediate_nodes){
       var this$ = this;
       real_key_seed == null && (real_key_seed = null);
-      name == null && (name = '');
       number_of_introduction_nodes == null && (number_of_introduction_nodes = 3);
       number_of_intermediate_nodes == null && (number_of_intermediate_nodes = 3);
       if (!(this instanceof Chat)) {
-        return new Chat(core_instance, real_key_seed, name, number_of_introduction_nodes, number_of_intermediate_nodes);
+        return new Chat(core_instance, real_key_seed, number_of_introduction_nodes, number_of_intermediate_nodes);
       }
       asyncEventer.call(this);
       this._core_instance = core_instance;
       this._real_key_seed = real_key_seed || detoxCore['generate_seed']();
       this._real_keypair = detoxCore['create_keypair'](this._real_key_seed);
-      this._nickname = string2array(nickname);
+      this._real_public_key = this._real_keypair['ed25519']['public'];
       this._number_of_introduction_nodes = number_of_introduction_nodes;
       this._number_of_intermediate_nodes = number_of_intermediate_nodes;
       this._connected_nodes = ArraySet();
@@ -83,6 +83,16 @@
         if (!this$._is_current_chat(real_public_key)) {
           return;
         }
+        switch (received_command) {
+        case COMMAND_NICKNAME:
+          this$['fire']('nickname', friend_id, array2string(received_data), received_data);
+          break;
+        case COMMAND_SECRET:
+          if (received_data.length !== ID_LENGTH) {
+            return;
+          }
+          this$['fire']('secret', friend_id, received_data);
+        }
       });
     }
     Cache['CONNECTION_ERROR_CANT_FIND_INTRODUCTION_NODES'] = detoxCore['CONNECTION_ERROR_CANT_FIND_INTRODUCTION_NODES'];
@@ -113,6 +123,26 @@
           return;
         }
         this._core_instance['connect_to'](this._real_key_seed, friend_id, APPLICATION, secret, this._number_of_intermediate_nodes);
+      }
+      /**
+       * @param {!Uint8Array}	friend_id	Ed25519 public key of a friend
+       * @param {string|!Uint8Array}	nickname	Nickname as string or Uint8Array to be sent to a friend
+       */,
+      'nickname': function(friend_id, nickname){
+        if (typeof nickname === 'string') {
+          nickname = string2array(nickname);
+        }
+        this._send(friend_id, COMMAND_NICKNAME, nickname);
+      }
+      /**
+       * @param {!Uint8Array} friend_id	Ed25519 public key of a friend
+       * @param {!Uint8Array} secret		Personal secret to be used by a friend on next connection
+       */,
+      'secret': function(friend_id, secret){
+        var x$, secret_to_send;
+        x$ = secret_to_send = new Uint8Array(ID_LENGTH);
+        x$.set(secret);
+        this._send(friend_id, COMMAND_SECRET, secret_to_send);
       },
       'send_to': function(friend_id){},
       'destroy': function(){
@@ -127,7 +157,15 @@
        * @return {boolean}
        */,
       _is_current_chat: function(real_public_key){
-        return are_arrays_equal(this._real_keypair['ed25519']['public'], real_public_key);
+        return are_arrays_equal(this._real_public_key, real_public_key);
+      }
+      /**
+       * @param {!Uint8Array}	friend_id
+       * @param {number}		command
+       * @param {!Uint8Array}	data
+       */,
+      _send: function(friend_id, command, data){
+        this._core_instance['send_to'](this._real_public_key, friend_id, command, data);
       }
     };
     Chat.prototype = Object.assign(Object.create(asyncEventer.prototype), Chat.prototype);
