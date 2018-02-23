@@ -3,10 +3,6 @@
  * @author  Nazar Mokrynskyi <nazar@mokrynskyi.com>
  * @license 0BSD
  */
-# detox-chat-v0
-const APPLICATION			= Uint8Array.of(100, 101, 116, 111, 120, 45, 99, 104, 97, 116, 45, 118, 48)
-const APPLICATION_STRING	= APPLICATION.join(',')
-
 const COMMAND_DIRECT_CONNECTION_SDP	= 0
 const COMMAND_SECRET_UPDATE			= 1
 const COMMAND_NICKNAME				= 2
@@ -18,6 +14,9 @@ const COMMAND_TEXT_MESSAGE_RECEIVED	= 4
 function Wrapper (detox-core, detox-crypto, detox-utils, fixed-size-multiplexer, async-eventer)
 	string2array		= detox-utils['string2array']
 	are_arrays_equal	= detox-utils['are_arrays_equal']
+	ArraySet			= detox-utils['ArraySet']
+
+	const APPLICATION	= string2array('detox-chat-v0')
 	/**
 	 * @constructor
 	 *
@@ -41,7 +40,7 @@ function Wrapper (detox-core, detox-crypto, detox-utils, fixed-size-multiplexer,
 		@_number_of_introduction_nodes	= number_of_introduction_nodes
 		@_number_of_intermediate_nodes	= number_of_intermediate_nodes
 
-		@_connected_nodes				= new Map
+		@_connected_nodes				= ArraySet()
 
 		@_core_instance
 			.'once'('announced', (real_public_key) !~>
@@ -52,7 +51,7 @@ function Wrapper (detox-core, detox-crypto, detox-utils, fixed-size-multiplexer,
 			.'on'('connected', (real_public_key, friend_id) !~>
 				if !@_is_current_chat(real_public_key)
 					return
-				@_connected_nodes.set(friend_id.join(','), friend_id)
+				@_connected_nodes.add(friend_id)
 				@'fire'('connected', friend_id)
 			)
 			.'on'('connection_progress', (real_public_key, friend_id, stage) !~>
@@ -68,13 +67,13 @@ function Wrapper (detox-core, detox-crypto, detox-utils, fixed-size-multiplexer,
 			.'on'('disconnected', (real_public_key, friend_id) !~>
 				if !@_is_current_chat(real_public_key)
 					return
-				@_connected_nodes.delete(friend_id.join(','))
+				@_connected_nodes.delete(friend_id)
 				@'fire'('disconnected', friend_id)
 			)
 			.'on'('introduction', (data) !~>
 				if !(
 					@_is_current_chat(real_public_key) &&
-					is_string_equal_to_array(APPLICATION_STRING, data['application'].subarray(0, APPLICATION.length))
+					are_arrays_equal(APPLICATION, data['application'].subarray(0, APPLICATION.length))
 				)
 					return
 				@'fire'('introduction', data['target_id'], data['secret'])
@@ -116,7 +115,7 @@ function Wrapper (detox-core, detox-crypto, detox-utils, fixed-size-multiplexer,
 		 * @param {!uint8Array} secret		Secret used for connection to a friend
 		 */
 		'connect_to' : (friend_id, secret) !->
-			if @_destroyed || @_connected_nodes.has(friend_id.join(','))
+			if @_destroyed || @_connected_nodes.has(friend_id)
 				return
 			@_core_instance['connect_to'](
 				@_real_key_seed

@@ -5,18 +5,18 @@
  * @license 0BSD
  */
 (function(){
-  var APPLICATION, APPLICATION_STRING, COMMAND_DIRECT_CONNECTION_SDP, COMMAND_SECRET_UPDATE, COMMAND_NICKNAME, COMMAND_TEXT_MESSAGE, COMMAND_TEXT_MESSAGE_RECEIVED;
-  APPLICATION = Uint8Array.of(100, 101, 116, 111, 120, 45, 99, 104, 97, 116, 45, 118, 48);
-  APPLICATION_STRING = APPLICATION.join(',');
+  var COMMAND_DIRECT_CONNECTION_SDP, COMMAND_SECRET_UPDATE, COMMAND_NICKNAME, COMMAND_TEXT_MESSAGE, COMMAND_TEXT_MESSAGE_RECEIVED;
   COMMAND_DIRECT_CONNECTION_SDP = 0;
   COMMAND_SECRET_UPDATE = 1;
   COMMAND_NICKNAME = 2;
   COMMAND_TEXT_MESSAGE = 3;
   COMMAND_TEXT_MESSAGE_RECEIVED = 4;
   function Wrapper(detoxCore, detoxCrypto, detoxUtils, fixedSizeMultiplexer, asyncEventer){
-    var string2array, are_arrays_equal;
+    var string2array, are_arrays_equal, ArraySet, APPLICATION;
     string2array = detoxUtils['string2array'];
     are_arrays_equal = detoxUtils['are_arrays_equal'];
+    ArraySet = detoxUtils['ArraySet'];
+    APPLICATION = string2array('detox-chat-v0');
     /**
      * @constructor
      *
@@ -44,7 +44,7 @@
       this._nickname = string2array(nickname);
       this._number_of_introduction_nodes = number_of_introduction_nodes;
       this._number_of_intermediate_nodes = number_of_intermediate_nodes;
-      this._connected_nodes = new Map;
+      this._connected_nodes = ArraySet();
       this._core_instance['once']('announced', function(real_public_key){
         if (!this$._is_current_chat(real_public_key)) {
           return;
@@ -54,7 +54,7 @@
         if (!this$._is_current_chat(real_public_key)) {
           return;
         }
-        this$._connected_nodes.set(friend_id.join(','), friend_id);
+        this$._connected_nodes.add(friend_id);
         this$['fire']('connected', friend_id);
       })['on']('connection_progress', function(real_public_key, friend_id, stage){
         if (!this$._is_current_chat(real_public_key)) {
@@ -70,10 +70,10 @@
         if (!this$._is_current_chat(real_public_key)) {
           return;
         }
-        this$._connected_nodes['delete'](friend_id.join(','));
+        this$._connected_nodes['delete'](friend_id);
         this$['fire']('disconnected', friend_id);
       })['on']('introduction', function(data){
-        if (!(this$._is_current_chat(real_public_key) && is_string_equal_to_array(APPLICATION_STRING, data['application'].subarray(0, APPLICATION.length)))) {
+        if (!(this$._is_current_chat(real_public_key) && are_arrays_equal(APPLICATION, data['application'].subarray(0, APPLICATION.length)))) {
           return;
         }
         this$['fire']('introduction', data['target_id'], data['secret']).then(function(){
@@ -109,7 +109,7 @@
        * @param {!uint8Array} secret		Secret used for connection to a friend
        */,
       'connect_to': function(friend_id, secret){
-        if (this._destroyed || this._connected_nodes.has(friend_id.join(','))) {
+        if (this._destroyed || this._connected_nodes.has(friend_id)) {
           return;
         }
         this._core_instance['connect_to'](this._real_key_seed, friend_id, APPLICATION, secret, this._number_of_intermediate_nodes);
