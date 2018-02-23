@@ -35,7 +35,8 @@
     return array;
   }
   function Wrapper(detoxCore, detoxCrypto, detoxUtils, fixedSizeMultiplexer, asyncEventer){
-    var string2array, array2string, are_arrays_equal, concat_arrays, error_handler, ArraySet, APPLICATION;
+    var random_bytes, string2array, array2string, are_arrays_equal, concat_arrays, error_handler, ArraySet, APPLICATION;
+    random_bytes = detoxUtils['random_bytes'];
     string2array = detoxUtils['string2array'];
     array2string = detoxUtils['array2string'];
     are_arrays_equal = detoxUtils['are_arrays_equal'];
@@ -265,6 +266,22 @@
         detoxCrypto['ready'](ready);
       },
       'Chat': Chat
+      /**
+       * Generate random seed that can be used as keypair seed
+       *
+       * @return {!Uint8Array} 32 bytes
+       */,
+      'generate_seed': function(){
+        return random_bytes(ID_LENGTH);
+      }
+      /**
+       * Generate random secret that can be used for friends connections
+       *
+       * @return {!Uint8Array} 32 bytes
+       */,
+      'generate_secret': function(){
+        return random_bytes(ID_LENGTH);
+      }
     };
   }
   if (typeof define === 'function' && define['amd']) {

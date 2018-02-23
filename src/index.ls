@@ -34,6 +34,7 @@ function date_to_array (number)
 	array
 
 function Wrapper (detox-core, detox-crypto, detox-utils, fixed-size-multiplexer, async-eventer)
+	random_bytes		= detox-utils['random_bytes']
 	string2array		= detox-utils['string2array']
 	array2string		= detox-utils['array2string']
 	are_arrays_equal	= detox-utils['are_arrays_equal']
@@ -235,7 +236,7 @@ function Wrapper (detox-core, detox-crypto, detox-utils, fixed-size-multiplexer,
 
 	Object.defineProperty(Chat::, 'constructor', {enumerable: false, value: Chat})
 	{
-		'ready'	: (callback) !->
+		'ready'				: (callback) !->
 			wait_for	= 2
 			!function ready
 				--wait_for
@@ -243,7 +244,21 @@ function Wrapper (detox-core, detox-crypto, detox-utils, fixed-size-multiplexer,
 					callback()
 			detox-core['ready'](ready)
 			detox-crypto['ready'](ready)
-		'Chat'	: Chat
+		'Chat'				: Chat
+		/**
+		 * Generate random seed that can be used as keypair seed
+		 *
+		 * @return {!Uint8Array} 32 bytes
+		 */
+		'generate_seed'		: ->
+			random_bytes(ID_LENGTH)
+		/**
+		 * Generate random secret that can be used for friends connections
+		 *
+		 * @return {!Uint8Array} 32 bytes
+		 */
+		'generate_secret'	: ->
+			random_bytes(ID_LENGTH)
 	}
 
 if typeof define == 'function' && define['amd']
