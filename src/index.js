@@ -35,11 +35,12 @@
     return array;
   }
   function Wrapper(detoxCore, detoxCrypto, detoxUtils, fixedSizeMultiplexer, asyncEventer){
-    var string2array, array2string, are_arrays_equal, concat_arrays, ArraySet, APPLICATION;
+    var string2array, array2string, are_arrays_equal, concat_arrays, error_handler, ArraySet, APPLICATION;
     string2array = detoxUtils['string2array'];
     array2string = detoxUtils['array2string'];
     are_arrays_equal = detoxUtils['are_arrays_equal'];
     concat_arrays = detoxUtils['concat_arrays'];
+    error_handler = detoxUtils['error_handler'];
     ArraySet = detoxUtils['ArraySet'];
     APPLICATION = string2array('detox-chat-v0');
     /**
@@ -103,6 +104,8 @@
         }
         this$['fire']('introduction', data['target_id'], data['secret']).then(function(){
           data['number_of_intermediate_nodes'] = Math.max(this$._number_of_intermediate_nodes - 1, 1);
+        })['catch'](function(error){
+          error_handler(error);
         });
       })['on']('data', function(real_public_key, friend_id, received_command, received_data){
         var date_array, date, text_array;

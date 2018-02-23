@@ -38,6 +38,7 @@ function Wrapper (detox-core, detox-crypto, detox-utils, fixed-size-multiplexer,
 	array2string		= detox-utils['array2string']
 	are_arrays_equal	= detox-utils['are_arrays_equal']
 	concat_arrays		= detox-utils['concat_arrays']
+	error_handler		= detox-utils['error_handler']
 	ArraySet			= detox-utils['ArraySet']
 
 	const APPLICATION	= string2array('detox-chat-v0')
@@ -104,6 +105,8 @@ function Wrapper (detox-core, detox-crypto, detox-utils, fixed-size-multiplexer,
 				@'fire'('introduction', data['target_id'], data['secret'])
 					.then !~>
 						data['number_of_intermediate_nodes']	= Math.max(@_number_of_intermediate_nodes - 1, 1)
+					.catch (error) !~>
+						error_handler(error)
 			)
 			.'on'('data', (real_public_key, friend_id, received_command, received_data) !~>
 				if !@_is_current_chat(real_public_key)
