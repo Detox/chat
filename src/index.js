@@ -170,6 +170,9 @@
        * @param {string|!Uint8Array}	nickname	Nickname as string or Uint8Array to be sent to a friend
        */,
       'nickname': function(friend_id, nickname){
+        if (this._destroyed || !this._connected_nodes.has(friend_id)) {
+          return;
+        }
         if (typeof nickname === 'string') {
           nickname = string2array(nickname);
         }
@@ -181,6 +184,9 @@
        */,
       'secret': function(friend_id, secret){
         var x$, secret_to_send;
+        if (this._destroyed || !this._connected_nodes.has(friend_id)) {
+          return;
+        }
         x$ = secret_to_send = new Uint8Array(ID_LENGTH);
         x$.set(secret);
         this._send(friend_id, COMMAND_SECRET, secret_to_send);
@@ -189,10 +195,13 @@
        * @param {!Uint8Array}			friend_id	Ed25519 public key of a friend
        * @param {string|!Uint8Array}	text		Text message to be sent to a friend (max 65527 bytes)
        *
-       * @return {number} Unix timestamp in milliseconds of the message (0 if message is empty or too big and was not sent)
+       * @return {number} Unix timestamp in milliseconds of the message (0 if message is empty or too big or connection is not present)
        */,
       'text_message': function(friend_id, text){
         var current_date, data;
+        if (this._destroyed || !this._connected_nodes.has(friend_id)) {
+          return 0;
+        }
         if (typeof text === 'string') {
           text = string2array(text);
         }

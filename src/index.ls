@@ -172,6 +172,8 @@ function Wrapper (detox-core, detox-crypto, detox-utils, fixed-size-multiplexer,
 		 * @param {string|!Uint8Array}	nickname	Nickname as string or Uint8Array to be sent to a friend
 		 */
 		'nickname' : (friend_id, nickname) !->
+			if @_destroyed || !@_connected_nodes.has(friend_id)
+				return
 			if typeof nickname == 'string'
 				nickname	= string2array(nickname)
 			@_send(friend_id, COMMAND_NICKNAME, nickname)
@@ -180,6 +182,8 @@ function Wrapper (detox-core, detox-crypto, detox-utils, fixed-size-multiplexer,
 		 * @param {!Uint8Array} secret		Personal secret to be used by a friend on next connection
 		 */
 		'secret' : (friend_id, secret) !->
+			if @_destroyed || !@_connected_nodes.has(friend_id)
+				return
 			secret_to_send	= new Uint8Array(ID_LENGTH)
 				..set(secret)
 			@_send(friend_id, COMMAND_SECRET, secret_to_send)
@@ -187,9 +191,11 @@ function Wrapper (detox-core, detox-crypto, detox-utils, fixed-size-multiplexer,
 		 * @param {!Uint8Array}			friend_id	Ed25519 public key of a friend
 		 * @param {string|!Uint8Array}	text		Text message to be sent to a friend (max 65527 bytes)
 		 *
-		 * @return {number} Unix timestamp in milliseconds of the message (0 if message is empty or too big and was not sent)
+		 * @return {number} Unix timestamp in milliseconds of the message (0 if message is empty or too big or connection is not present)
 		 */
 		'text_message' : (friend_id, text) ->
+			if @_destroyed || !@_connected_nodes.has(friend_id)
+				return 0
 			if typeof text == 'string'
 				text	= string2array(text)
 			if !text.length
