@@ -5,18 +5,41 @@
  * @license 0BSD
  */
 (function(){
-  var COMMAND_DIRECT_CONNECTION_SDP, COMMAND_SECRET, COMMAND_NICKNAME, COMMAND_TEXT_MESSAGE, COMMAND_TEXT_MESSAGE_RECEIVED, ID_LENGTH;
+  var COMMAND_DIRECT_CONNECTION_SDP, COMMAND_SECRET, COMMAND_NICKNAME, COMMAND_TEXT_MESSAGE, COMMAND_RECEIVED, ID_LENGTH;
   COMMAND_DIRECT_CONNECTION_SDP = 0;
   COMMAND_SECRET = 1;
   COMMAND_NICKNAME = 2;
   COMMAND_TEXT_MESSAGE = 3;
-  COMMAND_TEXT_MESSAGE_RECEIVED = 4;
+  COMMAND_RECEIVED = 4;
   ID_LENGTH = 32;
+  /**
+   * @param {!Uint8Array} array
+   *
+   * @return {number}
+   */
+  function date_to_number(array){
+    var view;
+    view = new DataView(array.buffer, array.byteOffset, array.byteLength);
+    return view.getFloat64(0, false);
+  }
+  /**
+   * @param {number} number
+   *
+   * @return {!Uint8Array}
+   */
+  function date_to_array(number){
+    var array, view;
+    array = new Uint8Array(8);
+    view = new DataView(array.buffer);
+    view.setFloat64(0, number, false);
+    return array;
+  }
   function Wrapper(detoxCore, detoxCrypto, detoxUtils, fixedSizeMultiplexer, asyncEventer){
-    var string2array, array2string, are_arrays_equal, ArraySet, APPLICATION;
+    var string2array, array2string, are_arrays_equal, concat_arrays, ArraySet, APPLICATION;
     string2array = detoxUtils['string2array'];
     array2string = detoxUtils['array2string'];
     are_arrays_equal = detoxUtils['are_arrays_equal'];
+    concat_arrays = detoxUtils['concat_arrays'];
     ArraySet = detoxUtils['ArraySet'];
     APPLICATION = string2array('detox-chat-v0');
     /**
@@ -44,7 +67,9 @@
       this._real_public_key = this._real_keypair['ed25519']['public'];
       this._number_of_introduction_nodes = number_of_introduction_nodes;
       this._number_of_intermediate_nodes = number_of_intermediate_nodes;
+      this._max_data_size = this._core_instance['get_max_data_size']();
       this._connected_nodes = ArraySet();
+      this._last_sent_date = 0;
       this._core_instance['once']('announced', function(real_public_key){
         if (!this$._is_current_chat(real_public_key)) {
           return;
@@ -80,10 +105,13 @@
           data['number_of_intermediate_nodes'] = Math.max(this$._number_of_intermediate_nodes - 1, 1);
         });
       })['on']('data', function(real_public_key, friend_id, received_command, received_data){
+        var date_array, date, text_array;
         if (!this$._is_current_chat(real_public_key)) {
           return;
         }
         switch (received_command) {
+        case COMMAND_DIRECT_CONNECTION_SDP:
+          break;
         case COMMAND_NICKNAME:
           this$['fire']('nickname', friend_id, array2string(received_data), received_data);
           break;
@@ -92,6 +120,19 @@
             return;
           }
           this$['fire']('secret', friend_id, received_data);
+          break;
+        case COMMAND_TEXT_MESSAGE:
+          if (received_data.length < 9) {
+            return;
+          }
+          date_array = received_data.subarray(0, 8);
+          date = date_to_number(date_array);
+          text_array = received_data.subarray(8);
+          this$._send(friend_id, COMMAND_RECEIVED, date_array);
+          this$['fire']('text_message', friend_id, date, array2string(text_array), text_array);
+          break;
+        case COMMAND_RECEIVED:
+          this$['fire']('received', friend_id, date_to_number(received_data));
         }
       });
     }
@@ -125,7 +166,7 @@
         this._core_instance['connect_to'](this._real_key_seed, friend_id, APPLICATION, secret, this._number_of_intermediate_nodes);
       }
       /**
-       * @param {!Uint8Array}	friend_id	Ed25519 public key of a friend
+       * @param {!Uint8Array}			friend_id	Ed25519 public key of a friend
        * @param {string|!Uint8Array}	nickname	Nickname as string or Uint8Array to be sent to a friend
        */,
       'nickname': function(friend_id, nickname){
@@ -143,8 +184,33 @@
         x$ = secret_to_send = new Uint8Array(ID_LENGTH);
         x$.set(secret);
         this._send(friend_id, COMMAND_SECRET, secret_to_send);
+      }
+      /**
+       * @param {!Uint8Array}			friend_id	Ed25519 public key of a friend
+       * @param {string|!Uint8Array}	text		Text message to be sent to a friend (max 65527 bytes)
+       *
+       * @return {number} Unix timestamp in milliseconds of the message (0 if message is empty or too big and was not sent)
+       */,
+      'text_message': function(friend_id, text){
+        var current_date, data;
+        if (typeof text === 'string') {
+          text = string2array(text);
+        }
+        if (!text.length) {
+          return 0;
+        }
+        current_date = +new Date;
+        if (current_date <= this._last_sent_date) {
+          current_date = this._last_sent_date + 1;
+        }
+        data = concat_arrays(date_to_array(current_date), text);
+        if (data.length > this._max_data_size) {
+          return 0;
+        }
+        this._last_sent_date = current_date;
+        this._send(friend_id, COMMAND_TEXT_MESSAGE, data);
+        return current_date;
       },
-      'send_to': function(friend_id){},
       'destroy': function(){
         if (this._destroyed) {
           return;

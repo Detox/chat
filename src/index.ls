@@ -7,16 +7,37 @@ const COMMAND_DIRECT_CONNECTION_SDP	= 0
 const COMMAND_SECRET				= 1
 const COMMAND_NICKNAME				= 2
 const COMMAND_TEXT_MESSAGE			= 3
-const COMMAND_TEXT_MESSAGE_RECEIVED	= 4
+const COMMAND_RECEIVED				= 4
+
+# TODO: Separate set of commands for direct connections (chat, file transfers, calls, etc.)
 
 const ID_LENGTH	= 32
 
-# TODO: Separate set of commands for direct connections (chat, file transfers, calls, etc.)
+/**
+ * @param {!Uint8Array} array
+ *
+ * @return {number}
+ */
+function date_to_number (array)
+	view	= new DataView(array.buffer, array.byteOffset, array.byteLength)
+	view.getFloat64(0, false)
+
+/**
+ * @param {number} number
+ *
+ * @return {!Uint8Array}
+ */
+function date_to_array (number)
+	array	= new Uint8Array(8)
+	view	= new DataView(array.buffer)
+	view.setFloat64(0, number, false)
+	array
 
 function Wrapper (detox-core, detox-crypto, detox-utils, fixed-size-multiplexer, async-eventer)
 	string2array		= detox-utils['string2array']
 	array2string		= detox-utils['array2string']
 	are_arrays_equal	= detox-utils['are_arrays_equal']
+	concat_arrays		= detox-utils['concat_arrays']
 	ArraySet			= detox-utils['ArraySet']
 
 	const APPLICATION	= string2array('detox-chat-v0')
@@ -41,8 +62,10 @@ function Wrapper (detox-core, detox-crypto, detox-utils, fixed-size-multiplexer,
 		@_real_public_key				= @_real_keypair['ed25519']['public']
 		@_number_of_introduction_nodes	= number_of_introduction_nodes
 		@_number_of_intermediate_nodes	= number_of_intermediate_nodes
+		@_max_data_size					= @_core_instance['get_max_data_size']()
 
 		@_connected_nodes				= ArraySet()
+		@_last_sent_date				= 0
 
 		@_core_instance
 			.'once'('announced', (real_public_key) !~>
@@ -86,14 +109,26 @@ function Wrapper (detox-core, detox-crypto, detox-utils, fixed-size-multiplexer,
 				if !@_is_current_chat(real_public_key)
 					return
 				switch received_command
+					case COMMAND_DIRECT_CONNECTION_SDP
+						# TODO
+						void
 					case COMMAND_NICKNAME
 						@'fire'('nickname', friend_id, array2string(received_data), received_data)
 					case COMMAND_SECRET
 						if received_data.length != ID_LENGTH
 							return
 						@'fire'('secret', friend_id, received_data)
+					case COMMAND_TEXT_MESSAGE
+						if received_data.length < 9 # Date + at least 1 character
+							return
+						date_array	= received_data.subarray(0, 8)
+						date		= date_to_number(date_array)
+						text_array	= received_data.subarray(8)
+						@_send(friend_id, COMMAND_RECEIVED, date_array)
+						@'fire'('text_message', friend_id, date, array2string(text_array), text_array)
+					case COMMAND_RECEIVED
+						@'fire'('received', friend_id, date_to_number(received_data))
 			)
-		# TODO
 
 	Cache.'CONNECTION_ERROR_CANT_FIND_INTRODUCTION_NODES'		= detox-core['CONNECTION_ERROR_CANT_FIND_INTRODUCTION_NODES']
 	Cache.'CONNECTION_ERROR_NOT_ENOUGH_INTERMEDIATE_NODES'		= detox-core['CONNECTION_ERROR_NOT_ENOUGH_INTERMEDIATE_NODES']
@@ -133,7 +168,7 @@ function Wrapper (detox-core, detox-crypto, detox-utils, fixed-size-multiplexer,
 				@_number_of_intermediate_nodes
 			)
 		/**
-		 * @param {!Uint8Array}	friend_id	Ed25519 public key of a friend
+		 * @param {!Uint8Array}			friend_id	Ed25519 public key of a friend
 		 * @param {string|!Uint8Array}	nickname	Nickname as string or Uint8Array to be sent to a friend
 		 */
 		'nickname' : (friend_id, nickname) !->
@@ -148,9 +183,26 @@ function Wrapper (detox-core, detox-crypto, detox-utils, fixed-size-multiplexer,
 			secret_to_send	= new Uint8Array(ID_LENGTH)
 				..set(secret)
 			@_send(friend_id, COMMAND_SECRET, secret_to_send)
-		'send_to' : (friend_id) !->
-			# TODO
-		# TODO: The rest of methods
+		/**
+		 * @param {!Uint8Array}			friend_id	Ed25519 public key of a friend
+		 * @param {string|!Uint8Array}	text		Text message to be sent to a friend (max 65527 bytes)
+		 *
+		 * @return {number} Unix timestamp in milliseconds of the message (0 if message is empty or too big and was not sent)
+		 */
+		'text_message' : (friend_id, text) ->
+			if typeof text == 'string'
+				text	= string2array(text)
+			if !text.length
+				return 0
+			current_date	= +(new Date)
+			if current_date <= @_last_sent_date
+				current_date	= @_last_sent_date + 1
+			data	= concat_arrays(date_to_array(current_date), text)
+			if data.length > @_max_data_size
+				return 0
+			@_last_sent_date	= current_date
+			@_send(friend_id, COMMAND_TEXT_MESSAGE, data)
+			current_date
 		'destroy' : !->
 			if @_destroyed
 				return
