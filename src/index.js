@@ -5,42 +5,43 @@
  * @license 0BSD
  */
 (function(){
-  var APPLICATION, APPLICATION_STRING;
+  var APPLICATION, APPLICATION_STRING, COMMAND_DIRECT_CONNECTION_SDP, COMMAND_SECRET_UPDATE, COMMAND_NICKNAME, COMMAND_TEXT_MESSAGE, COMMAND_TEXT_MESSAGE_RECEIVED;
   APPLICATION = Uint8Array.of(100, 101, 116, 111, 120, 45, 99, 104, 97, 116, 45, 118, 48);
   APPLICATION_STRING = APPLICATION.join(',');
-  /**
-   * @param {string}		string
-   * @param {!Uint8Array}	array
-   *
-   * @return {boolean}
-   */
-  function is_string_equal_to_array(string, array){
-    return string === array.join(',');
-  }
-  function Wrapper(detoxCore, detoxCrypto, fixedSizeMultiplexer, asyncEventer){
+  COMMAND_DIRECT_CONNECTION_SDP = 0;
+  COMMAND_SECRET_UPDATE = 1;
+  COMMAND_NICKNAME = 2;
+  COMMAND_TEXT_MESSAGE = 3;
+  COMMAND_TEXT_MESSAGE_RECEIVED = 4;
+  function Wrapper(detoxCore, detoxCrypto, detoxUtils, fixedSizeMultiplexer, asyncEventer){
+    var string2array, are_arrays_equal;
+    string2array = detoxUtils['string2array'];
+    are_arrays_equal = detoxUtils['are_arrays_equal'];
     /**
      * @constructor
      *
      * @param {!Object}		core_instance					Detox core instance
      * @param {Uint8Array=}	real_key_seed					Seed used to generate real long-term keypair (if not specified - random one is used)
+     * @param {string=}		nickname						User nickname that will be shown to the friend
      * @param {number=}		number_of_introduction_nodes	Number of introduction nodes used for announcement to the network
      * @param {number=}		number_of_intermediate_nodes	How many hops should be made when making connections
      *
      * @return {!Chat}
      */
-    function Chat(core_instance, real_key_seed, number_of_introduction_nodes, number_of_intermediate_nodes){
+    function Chat(core_instance, real_key_seed, name, number_of_introduction_nodes, number_of_intermediate_nodes){
       var this$ = this;
       real_key_seed == null && (real_key_seed = null);
+      name == null && (name = '');
       number_of_introduction_nodes == null && (number_of_introduction_nodes = 3);
       number_of_intermediate_nodes == null && (number_of_intermediate_nodes = 3);
       if (!(this instanceof Chat)) {
-        return new Chat(core_instance, real_key_seed, number_of_introduction_nodes, number_of_intermediate_nodes);
+        return new Chat(core_instance, real_key_seed, name, number_of_introduction_nodes, number_of_intermediate_nodes);
       }
       asyncEventer.call(this);
       this._core_instance = core_instance;
       this._real_key_seed = real_key_seed || detoxCore['generate_seed']();
       this._real_keypair = detoxCore['create_keypair'](this._real_key_seed);
-      this._real_public_key_string = this._real_keypair['ed25519']['public'].join(',');
+      this._nickname = string2array(nickname);
       this._number_of_introduction_nodes = number_of_introduction_nodes;
       this._number_of_intermediate_nodes = number_of_intermediate_nodes;
       this._connected_nodes = new Map;
@@ -126,7 +127,7 @@
        * @return {boolean}
        */,
       _is_current_chat: function(real_public_key){
-        return is_string_equal_to_array(this._real_public_key_string, real_public_key);
+        return are_arrays_equal(this._real_keypair['ed25519']['public'], real_public_key);
       }
     };
     Chat.prototype = Object.assign(Object.create(asyncEventer.prototype), Chat.prototype);
@@ -151,10 +152,10 @@
     };
   }
   if (typeof define === 'function' && define['amd']) {
-    define(['@detox/core', '@detox/crypto', 'fixed-size-multiplexer', 'async-eventer'], Wrapper);
+    define(['@detox/core', '@detox/crypto', '@detox/utils', 'fixed-size-multiplexer', 'async-eventer'], Wrapper);
   } else if (typeof exports === 'object') {
-    module.exports = Wrapper(require('@detox/core'), require('@detox/crypto'), require('fixed-size-multiplexer'), require('async-eventer'));
+    module.exports = Wrapper(require('@detox/core'), require('@detox/crypto'), require('@detox/utils'), require('fixed-size-multiplexer'), require('async-eventer'));
   } else {
-    this['detox_chat'] = Wrapper(this['detox_core'], this['detox_crypto'], this['fixed_size_multiplexer'], this['async_eventer']);
+    this['detox_chat'] = Wrapper(this['detox_core'], this['detox_crypto'], this['detox_utils'], this['fixed_size_multiplexer'], this['async_eventer']);
   }
 }).call(this);

@@ -7,35 +7,37 @@
 const APPLICATION			= Uint8Array.of(100, 101, 116, 111, 120, 45, 99, 104, 97, 116, 45, 118, 48)
 const APPLICATION_STRING	= APPLICATION.join(',')
 
-/**
- * @param {string}		string
- * @param {!Uint8Array}	array
- *
- * @return {boolean}
- */
-function is_string_equal_to_array (string, array)
-	string == array.join(',')
+const COMMAND_DIRECT_CONNECTION_SDP	= 0
+const COMMAND_SECRET_UPDATE			= 1
+const COMMAND_NICKNAME				= 2
+const COMMAND_TEXT_MESSAGE			= 3
+const COMMAND_TEXT_MESSAGE_RECEIVED	= 4
 
-function Wrapper (detox-core, detox-crypto, fixed-size-multiplexer, async-eventer)
+# TODO: Separate set of commands for direct connections (chat, file transfers, calls, etc.)
+
+function Wrapper (detox-core, detox-crypto, detox-utils, fixed-size-multiplexer, async-eventer)
+	string2array		= detox-utils['string2array']
+	are_arrays_equal	= detox-utils['are_arrays_equal']
 	/**
 	 * @constructor
 	 *
 	 * @param {!Object}		core_instance					Detox core instance
 	 * @param {Uint8Array=}	real_key_seed					Seed used to generate real long-term keypair (if not specified - random one is used)
+	 * @param {string=}		nickname						User nickname that will be shown to the friend
 	 * @param {number=}		number_of_introduction_nodes	Number of introduction nodes used for announcement to the network
 	 * @param {number=}		number_of_intermediate_nodes	How many hops should be made when making connections
 	 *
 	 * @return {!Chat}
 	 */
-	!function Chat (core_instance, real_key_seed = null, number_of_introduction_nodes = 3, number_of_intermediate_nodes = 3)
+	!function Chat (core_instance, real_key_seed = null, name = '', number_of_introduction_nodes = 3, number_of_intermediate_nodes = 3)
 		if !(@ instanceof Chat)
-			return new Chat(core_instance, real_key_seed, number_of_introduction_nodes, number_of_intermediate_nodes)
+			return new Chat(core_instance, real_key_seed, name, number_of_introduction_nodes, number_of_intermediate_nodes)
 		async-eventer.call(@)
 
 		@_core_instance					= core_instance
 		@_real_key_seed					= real_key_seed || detox-core['generate_seed']()
 		@_real_keypair					= detox-core['create_keypair'](@_real_key_seed)
-		@_real_public_key_string		= @_real_keypair['ed25519']['public'].join(',')
+		@_nickname						= string2array(nickname)
 		@_number_of_introduction_nodes	= number_of_introduction_nodes
 		@_number_of_intermediate_nodes	= number_of_intermediate_nodes
 
@@ -136,7 +138,7 @@ function Wrapper (detox-core, detox-crypto, fixed-size-multiplexer, async-evente
 		 * @return {boolean}
 		 */
 		_is_current_chat : (real_public_key) ->
-			is_string_equal_to_array(@_real_public_key_string, real_public_key)
+			are_arrays_equal(@_real_keypair['ed25519']['public'], real_public_key)
 
 	Chat:: = Object.assign(Object.create(async-eventer::), Chat::)
 
@@ -155,10 +157,10 @@ function Wrapper (detox-core, detox-crypto, fixed-size-multiplexer, async-evente
 
 if typeof define == 'function' && define['amd']
 	# AMD
-	define(['@detox/core', '@detox/crypto', 'fixed-size-multiplexer', 'async-eventer'], Wrapper)
+	define(['@detox/core', '@detox/crypto', '@detox/utils', 'fixed-size-multiplexer', 'async-eventer'], Wrapper)
 else if typeof exports == 'object'
 	# CommonJS
-	module.exports = Wrapper(require('@detox/core'), require('@detox/crypto'), require('fixed-size-multiplexer'), require('async-eventer'))
+	module.exports = Wrapper(require('@detox/core'), require('@detox/crypto'), require('@detox/utils'), require('fixed-size-multiplexer'), require('async-eventer'))
 else
 	# Browser globals
-	@'detox_chat' = Wrapper(@'detox_core', @'detox_crypto', @'fixed_size_multiplexer', @'async_eventer')
+	@'detox_chat' = Wrapper(@'detox_core', @'detox_crypto', @'detox_utils', @'fixed_size_multiplexer', @'async_eventer')
