@@ -1,0 +1,1 @@
+#chat-windows{display:flex;width:800px}#chat-windows>*{display:flex;flex-direction:column;flex-grow:1}#chat-windows>*>*{box-sizing:border-box;display:block;width:100%}#chat-windows>* div{color:blue;padding:5px}#chat-windows>* .right{color:red;text-align:right}

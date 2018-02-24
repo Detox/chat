@@ -1,0 +1,31 @@
+/**
+ * @package Detox chat
+ * @author  Nazar Mokrynskyi <nazar@mokrynskyi.com>
+ * @license 0BSD
+ */
+#chat-windows {
+	display : flex;
+	width   : 800px;
+
+	> * {
+		display        : flex;
+		flex-direction : column;
+		flex-grow      : 1;
+
+		> * {
+			box-sizing : border-box;
+			display    : block;
+			width      : 100%;
+		}
+
+		div {
+			color   : blue;
+			padding : 5px;
+		}
+
+		.right {
+			color      : red;
+			text-align : right;
+		}
+	}
+}
