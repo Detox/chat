@@ -1,4 +1,4 @@
-# Detox chat
+# Detox chat [![Travis CI](https://img.shields.io/travis/Detox/chat/master.svg?label=Travis%20CI)](https://travis-ci.org/Detox/chat)
 Here be dragons
 
 ## License
