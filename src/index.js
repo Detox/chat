@@ -65,7 +65,7 @@
       asyncEventer.call(this);
       this._core_instance = core_instance;
       this._real_key_seed = real_key_seed || detoxCore['generate_seed']();
-      this._real_keypair = detoxCore['create_keypair'](this._real_key_seed);
+      this._real_keypair = detoxCrypto['create_keypair'](this._real_key_seed);
       this._real_public_key = this._real_keypair['ed25519']['public'];
       this._number_of_introduction_nodes = number_of_introduction_nodes;
       this._number_of_intermediate_nodes = number_of_intermediate_nodes;
@@ -100,10 +100,10 @@
         this$._connected_nodes['delete'](friend_id);
         this$['fire']('disconnected', friend_id);
       })['on']('introduction', function(data){
-        if (!(this$._is_current_chat(real_public_key) && are_arrays_equal(APPLICATION, data['application'].subarray(0, APPLICATION.length)))) {
+        if (!(this$._is_current_chat(data['real_public_key']) && are_arrays_equal(APPLICATION, data['application'].subarray(0, APPLICATION.length)))) {
           return;
         }
-        this$['fire']('introduction', data['target_id'], data['secret']).then(function(){
+        return this$['fire']('introduction', data['target_id'], data['secret']).then(function(){
           data['number_of_intermediate_nodes'] = Math.max(this$._number_of_intermediate_nodes - 1, 1);
         })['catch'](function(error){
           error_handler(error);
@@ -140,14 +140,14 @@
         }
       });
     }
-    Cache['CONNECTION_ERROR_CANT_FIND_INTRODUCTION_NODES'] = detoxCore['CONNECTION_ERROR_CANT_FIND_INTRODUCTION_NODES'];
-    Cache['CONNECTION_ERROR_NOT_ENOUGH_INTERMEDIATE_NODES'] = detoxCore['CONNECTION_ERROR_NOT_ENOUGH_INTERMEDIATE_NODES'];
-    Cache['CONNECTION_ERROR_NO_INTRODUCTION_NODES'] = detoxCore['CONNECTION_ERROR_NO_INTRODUCTION_NODES'];
-    Cache['CONNECTION_ERROR_CANT_CONNECT_TO_RENDEZVOUS_POINT'] = detoxCore['CONNECTION_ERROR_CANT_CONNECT_TO_RENDEZVOUS_POINT'];
-    Cache['CONNECTION_ERROR_OUT_OF_INTRODUCTION_NODES'] = detoxCore['CONNECTION_ERROR_OUT_OF_INTRODUCTION_NODES'];
-    Cache['CONNECTION_PROGRESS_CONNECTED_TO_RENDEZVOUS_NODE'] = detoxCore['CONNECTION_PROGRESS_CONNECTED_TO_RENDEZVOUS_NODE'];
-    Cache['CONNECTION_PROGRESS_FOUND_INTRODUCTION_NODES'] = detoxCore['CONNECTION_PROGRESS_FOUND_INTRODUCTION_NODES'];
-    Cache['CONNECTION_PROGRESS_INTRODUCTION_SENT'] = detoxCore['CONNECTION_PROGRESS_INTRODUCTION_SENT'];
+    Chat['CONNECTION_ERROR_CANT_FIND_INTRODUCTION_NODES'] = detoxCore['CONNECTION_ERROR_CANT_FIND_INTRODUCTION_NODES'];
+    Chat['CONNECTION_ERROR_NOT_ENOUGH_INTERMEDIATE_NODES'] = detoxCore['CONNECTION_ERROR_NOT_ENOUGH_INTERMEDIATE_NODES'];
+    Chat['CONNECTION_ERROR_NO_INTRODUCTION_NODES'] = detoxCore['CONNECTION_ERROR_NO_INTRODUCTION_NODES'];
+    Chat['CONNECTION_ERROR_CANT_CONNECT_TO_RENDEZVOUS_POINT'] = detoxCore['CONNECTION_ERROR_CANT_CONNECT_TO_RENDEZVOUS_POINT'];
+    Chat['CONNECTION_ERROR_OUT_OF_INTRODUCTION_NODES'] = detoxCore['CONNECTION_ERROR_OUT_OF_INTRODUCTION_NODES'];
+    Chat['CONNECTION_PROGRESS_CONNECTED_TO_RENDEZVOUS_NODE'] = detoxCore['CONNECTION_PROGRESS_CONNECTED_TO_RENDEZVOUS_NODE'];
+    Chat['CONNECTION_PROGRESS_FOUND_INTRODUCTION_NODES'] = detoxCore['CONNECTION_PROGRESS_FOUND_INTRODUCTION_NODES'];
+    Chat['CONNECTION_PROGRESS_INTRODUCTION_SENT'] = detoxCore['CONNECTION_PROGRESS_INTRODUCTION_SENT'];
     Chat.prototype = {
       /**
        * Announce itself to the network (can operate without announcement)
@@ -216,7 +216,7 @@
         if (current_date <= this._last_sent_date) {
           current_date = this._last_sent_date + 1;
         }
-        data = concat_arrays(date_to_array(current_date), text);
+        data = concat_arrays([date_to_array(current_date), text]);
         if (data.length > this._max_data_size) {
           return 0;
         }

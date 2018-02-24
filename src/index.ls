@@ -60,7 +60,7 @@ function Wrapper (detox-core, detox-crypto, detox-utils, fixed-size-multiplexer,
 
 		@_core_instance					= core_instance
 		@_real_key_seed					= real_key_seed || detox-core['generate_seed']()
-		@_real_keypair					= detox-core['create_keypair'](@_real_key_seed)
+		@_real_keypair					= detox-crypto['create_keypair'](@_real_key_seed)
 		@_real_public_key				= @_real_keypair['ed25519']['public']
 		@_number_of_introduction_nodes	= number_of_introduction_nodes
 		@_number_of_intermediate_nodes	= number_of_intermediate_nodes
@@ -97,9 +97,9 @@ function Wrapper (detox-core, detox-crypto, detox-utils, fixed-size-multiplexer,
 				@_connected_nodes.delete(friend_id)
 				@'fire'('disconnected', friend_id)
 			)
-			.'on'('introduction', (data) !~>
+			.'on'('introduction', (data) ~>
 				if !(
-					@_is_current_chat(real_public_key) &&
+					@_is_current_chat(data['real_public_key']) &&
 					are_arrays_equal(APPLICATION, data['application'].subarray(0, APPLICATION.length))
 				)
 					return
@@ -134,15 +134,15 @@ function Wrapper (detox-core, detox-crypto, detox-utils, fixed-size-multiplexer,
 						@'fire'('received', friend_id, date_to_number(received_data))
 			)
 
-	Cache.'CONNECTION_ERROR_CANT_FIND_INTRODUCTION_NODES'		= detox-core['CONNECTION_ERROR_CANT_FIND_INTRODUCTION_NODES']
-	Cache.'CONNECTION_ERROR_NOT_ENOUGH_INTERMEDIATE_NODES'		= detox-core['CONNECTION_ERROR_NOT_ENOUGH_INTERMEDIATE_NODES']
-	Cache.'CONNECTION_ERROR_NO_INTRODUCTION_NODES'				= detox-core['CONNECTION_ERROR_NO_INTRODUCTION_NODES']
-	Cache.'CONNECTION_ERROR_CANT_CONNECT_TO_RENDEZVOUS_POINT'	= detox-core['CONNECTION_ERROR_CANT_CONNECT_TO_RENDEZVOUS_POINT']
-	Cache.'CONNECTION_ERROR_OUT_OF_INTRODUCTION_NODES'			= detox-core['CONNECTION_ERROR_OUT_OF_INTRODUCTION_NODES']
+	Chat.'CONNECTION_ERROR_CANT_FIND_INTRODUCTION_NODES'		= detox-core['CONNECTION_ERROR_CANT_FIND_INTRODUCTION_NODES']
+	Chat.'CONNECTION_ERROR_NOT_ENOUGH_INTERMEDIATE_NODES'		= detox-core['CONNECTION_ERROR_NOT_ENOUGH_INTERMEDIATE_NODES']
+	Chat.'CONNECTION_ERROR_NO_INTRODUCTION_NODES'				= detox-core['CONNECTION_ERROR_NO_INTRODUCTION_NODES']
+	Chat.'CONNECTION_ERROR_CANT_CONNECT_TO_RENDEZVOUS_POINT'	= detox-core['CONNECTION_ERROR_CANT_CONNECT_TO_RENDEZVOUS_POINT']
+	Chat.'CONNECTION_ERROR_OUT_OF_INTRODUCTION_NODES'			= detox-core['CONNECTION_ERROR_OUT_OF_INTRODUCTION_NODES']
 
-	Cache.'CONNECTION_PROGRESS_CONNECTED_TO_RENDEZVOUS_NODE'	= detox-core['CONNECTION_PROGRESS_CONNECTED_TO_RENDEZVOUS_NODE']
-	Cache.'CONNECTION_PROGRESS_FOUND_INTRODUCTION_NODES'		= detox-core['CONNECTION_PROGRESS_FOUND_INTRODUCTION_NODES']
-	Cache.'CONNECTION_PROGRESS_INTRODUCTION_SENT'				= detox-core['CONNECTION_PROGRESS_INTRODUCTION_SENT']
+	Chat.'CONNECTION_PROGRESS_CONNECTED_TO_RENDEZVOUS_NODE'		= detox-core['CONNECTION_PROGRESS_CONNECTED_TO_RENDEZVOUS_NODE']
+	Chat.'CONNECTION_PROGRESS_FOUND_INTRODUCTION_NODES'			= detox-core['CONNECTION_PROGRESS_FOUND_INTRODUCTION_NODES']
+	Chat.'CONNECTION_PROGRESS_INTRODUCTION_SENT'				= detox-core['CONNECTION_PROGRESS_INTRODUCTION_SENT']
 
 	Chat:: =
 		/**
@@ -207,7 +207,7 @@ function Wrapper (detox-core, detox-crypto, detox-utils, fixed-size-multiplexer,
 			current_date	= +(new Date)
 			if current_date <= @_last_sent_date
 				current_date	= @_last_sent_date + 1
-			data	= concat_arrays(date_to_array(current_date), text)
+			data	= concat_arrays([date_to_array(current_date), text])
 			if data.length > @_max_data_size
 				return 0
 			@_last_sent_date	= current_date
