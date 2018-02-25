@@ -170,7 +170,7 @@
        * Establish connection with a friend
        *
        * @param {!Uint8Array} friend_id	Ed25519 public key of a friend
-       * @param {!uint8Array} secret		Secret used for connection to a friend
+       * @param {!Uint8Array} secret		Secret used for connection to a friend
        */,
       'connect_to': function(friend_id, secret){
         if (this._destroyed || this._connected_nodes.has(friend_id)) {

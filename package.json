@@ -1,8 +1,14 @@
 {
 	"name"            : "@detox/chat",
-	"description"     : "",
-	"keywords"        : [],
-	"version"         : "",
+	"description"     : "Chat library of Detox project that provides high-level APIs used when building chat application on top of Detox network",
+	"keywords"        : [
+		"detox",
+		"chat",
+		"anonymous",
+		"distributed",
+		"p2p"
+	],
+	"version"         : "0.1.0",
 	"homepage"        : "https://github.com/Detox/chat",
 	"author"          : "Nazar Mokrynskyi <nazar@mokrynskyi.com>",
 	"repository"      : {
