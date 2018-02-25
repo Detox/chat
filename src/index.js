@@ -103,7 +103,7 @@
         if (!(this$._is_current_chat(data['real_public_key']) && are_arrays_equal(APPLICATION, data['application'].subarray(0, APPLICATION.length)))) {
           return;
         }
-        return this$['fire']('introduction', data['target_id'], data['secret']).then(function(){
+        return this$['fire']('introduction', data['target_id'], data['secret'], data['application']).then(function(){
           data['number_of_intermediate_nodes'] = Math.max(this$._number_of_intermediate_nodes - 1, 1);
         })['catch'](function(error){
           error_handler(error);

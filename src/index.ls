@@ -103,7 +103,7 @@ function Wrapper (detox-core, detox-crypto, detox-utils, fixed-size-multiplexer,
 					are_arrays_equal(APPLICATION, data['application'].subarray(0, APPLICATION.length))
 				)
 					return
-				@'fire'('introduction', data['target_id'], data['secret'])
+				@'fire'('introduction', data['target_id'], data['secret'], data['application'])
 					.then !~>
 						data['number_of_intermediate_nodes']	= Math.max(@_number_of_intermediate_nodes - 1, 1)
 					.catch (error) !~>
