@@ -8,12 +8,15 @@ detox-crypto	= require('@detox/crypto')
 lib				= require('..')
 test			= require('tape')
 
-const NUMBER_OF_NODES = 10
-
-bootstrap_ip	= '127.0.0.1'
-bootstrap_port	= 16882
-
-plaintext	= 'Hello, Detox chat!'
+const NUMBER_OF_NODES		= 10
+const bootstrap_node_id		= '3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29'
+const bootstrap_ip			= '127.0.0.1'
+const bootstrap_port		= 16882
+const bootstrap_node_info	=
+	node_id	: bootstrap_node_id
+	host	: bootstrap_ip
+	port	: bootstrap_port
+const plaintext				= 'Hello, Detox chat!'
 
 <-! lib.ready
 test('Core', (t) !->
@@ -26,11 +29,6 @@ test('Core', (t) !->
 	generated_secret	= lib.generate_secret()
 	t.ok(generated_secret instanceof Uint8Array, 'Secret is Uint8Array')
 	t.equal(generated_secret.length, 32, 'Secret length is 32 bytes')
-
-	bootstrap_node_info		=
-		node_id	: Buffer(detox-crypto.create_keypair(new Uint8Array(32)).ed25519.public).toString('hex')
-		host	: bootstrap_ip
-		port	: bootstrap_port
 
 	node_1_real_seed		= new Uint8Array(32)
 		..set([1, 1])

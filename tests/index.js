@@ -5,18 +5,24 @@
  * @license 0BSD
  */
 (function(){
-  var detoxCore, detoxCrypto, lib, test, NUMBER_OF_NODES, bootstrap_ip, bootstrap_port, plaintext;
+  var detoxCore, detoxCrypto, lib, test, NUMBER_OF_NODES, bootstrap_node_id, bootstrap_ip, bootstrap_port, bootstrap_node_info, plaintext;
   detoxCore = require('@detox/core');
   detoxCrypto = require('@detox/crypto');
   lib = require('..');
   test = require('tape');
   NUMBER_OF_NODES = 10;
+  bootstrap_node_id = '3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29';
   bootstrap_ip = '127.0.0.1';
   bootstrap_port = 16882;
+  bootstrap_node_info = {
+    node_id: bootstrap_node_id,
+    host: bootstrap_ip,
+    port: bootstrap_port
+  };
   plaintext = 'Hello, Detox chat!';
   lib.ready(function(){
     test('Core', function(t){
-      var generated_seed, generated_secret, bootstrap_node_info, x$, node_1_real_seed, node_1_real_public_key, y$, node_3_real_seed, node_3_real_public_key, nodes, wait_for, i$, to$;
+      var generated_seed, generated_secret, x$, node_1_real_seed, node_1_real_public_key, y$, node_3_real_seed, node_3_real_public_key, nodes, wait_for, i$, to$;
       t.plan(NUMBER_OF_NODES + 15);
       generated_seed = lib.generate_seed();
       t.ok(generated_seed instanceof Uint8Array, 'Seed is Uint8Array');
@@ -24,11 +30,6 @@
       generated_secret = lib.generate_secret();
       t.ok(generated_secret instanceof Uint8Array, 'Secret is Uint8Array');
       t.equal(generated_secret.length, 32, 'Secret length is 32 bytes');
-      bootstrap_node_info = {
-        node_id: Buffer(detoxCrypto.create_keypair(new Uint8Array(32)).ed25519['public']).toString('hex'),
-        host: bootstrap_ip,
-        port: bootstrap_port
-      };
       x$ = node_1_real_seed = new Uint8Array(32);
       x$.set([1, 1]);
       node_1_real_public_key = detoxCrypto.create_keypair(node_1_real_seed).ed25519['public'];
