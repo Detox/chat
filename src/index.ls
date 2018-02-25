@@ -60,7 +60,7 @@ function Wrapper (detox-core, detox-crypto, detox-utils, fixed-size-multiplexer,
 		async-eventer.call(@)
 
 		@_core_instance					= core_instance
-		@_real_key_seed					= real_key_seed || detox-core['generate_seed']()
+		@_real_key_seed					= real_key_seed || random_bytes(ID_LENGTH)
 		@_real_keypair					= detox-crypto['create_keypair'](@_real_key_seed)
 		@_real_public_key				= @_real_keypair['ed25519']['public']
 		@_number_of_introduction_nodes	= number_of_introduction_nodes
@@ -72,34 +72,35 @@ function Wrapper (detox-core, detox-crypto, detox-utils, fixed-size-multiplexer,
 
 		@_core_instance
 			.'once'('announced', (real_public_key) !~>
-				if !@_is_current_chat(real_public_key)
+				if @_destroyed || !@_is_current_chat(real_public_key)
 					return
 				@'fire'('announced')
 			)
 			.'on'('connected', (real_public_key, friend_id) !~>
-				if !@_is_current_chat(real_public_key)
+				if @_destroyed || !@_is_current_chat(real_public_key)
 					return
 				@_connected_nodes.add(friend_id)
 				@'fire'('connected', friend_id)
 			)
 			.'on'('connection_progress', (real_public_key, friend_id, stage) !~>
-				if !@_is_current_chat(real_public_key)
+				if @_destroyed || !@_is_current_chat(real_public_key)
 					return
 				@'fire'('connection_progress', friend_id, stage)
 			)
 			.'on'('connection_failed', (real_public_key, friend_id, reason) !~>
-				if !@_is_current_chat(real_public_key)
+				if @_destroyed || !@_is_current_chat(real_public_key)
 					return
 				@'fire'('connection_failed', friend_id, reason)
 			)
 			.'on'('disconnected', (real_public_key, friend_id) !~>
-				if !@_is_current_chat(real_public_key)
+				if @_destroyed || !@_is_current_chat(real_public_key)
 					return
 				@_connected_nodes.delete(friend_id)
 				@'fire'('disconnected', friend_id)
 			)
 			.'on'('introduction', (data) ~>
 				if !(
+					!@_destroyed &&
 					@_is_current_chat(data['real_public_key']) &&
 					are_arrays_equal(APPLICATION, data['application'].subarray(0, APPLICATION.length))
 				)
@@ -111,7 +112,7 @@ function Wrapper (detox-core, detox-crypto, detox-utils, fixed-size-multiplexer,
 						error_handler(error)
 			)
 			.'on'('data', (real_public_key, friend_id, received_command, received_data) !~>
-				if !@_is_current_chat(real_public_key)
+				if @_destroyed || !@_is_current_chat(real_public_key)
 					return
 				switch received_command
 					case COMMAND_DIRECT_CONNECTION_SDP
@@ -163,6 +164,8 @@ function Wrapper (detox-core, detox-crypto, detox-utils, fixed-size-multiplexer,
 				Math.max(@_number_of_intermediate_nodes - 1, 1)
 			)
 		/**
+		 * Establish connection with a friend
+		 *
 		 * @param {!Uint8Array} friend_id	Ed25519 public key of a friend
 		 * @param {!uint8Array} secret		Secret used for connection to a friend
 		 */
@@ -177,6 +180,8 @@ function Wrapper (detox-core, detox-crypto, detox-utils, fixed-size-multiplexer,
 				@_number_of_intermediate_nodes
 			)
 		/**
+		 * Send a nickname to a friend
+		 *
 		 * @param {!Uint8Array}			friend_id	Ed25519 public key of a friend
 		 * @param {string|!Uint8Array}	nickname	Nickname as string or Uint8Array to be sent to a friend
 		 */
@@ -187,8 +192,10 @@ function Wrapper (detox-core, detox-crypto, detox-utils, fixed-size-multiplexer,
 				nickname	= string2array(nickname)
 			@_send(friend_id, COMMAND_NICKNAME, nickname)
 		/**
+		 * Send a secret to a friend that will be used for future connections
+		 *
 		 * @param {!Uint8Array} friend_id	Ed25519 public key of a friend
-		 * @param {!Uint8Array} secret		Personal secret to be used by a friend on next connection
+		 * @param {!Uint8Array} secret		Personal secret to be used by a friend for future connection
 		 */
 		'secret' : (friend_id, secret) !->
 			if @_destroyed || !@_connected_nodes.has(friend_id)
@@ -197,6 +204,8 @@ function Wrapper (detox-core, detox-crypto, detox-utils, fixed-size-multiplexer,
 				..set(secret)
 			@_send(friend_id, COMMAND_SECRET, secret_to_send)
 		/**
+		 * Send a text message to a friend
+		 *
 		 * @param {!Uint8Array}			friend_id	Ed25519 public key of a friend
 		 * @param {string|!Uint8Array}	text		Text message to be sent to a friend (max 65527 bytes)
 		 *
@@ -219,12 +228,17 @@ function Wrapper (detox-core, detox-crypto, detox-utils, fixed-size-multiplexer,
 			@_send(friend_id, COMMAND_TEXT_MESSAGE, data)
 			current_date
 		/**
+		 * Send custom command
+		 *
 		 * @param {!Uint8Array}	friend_id	Ed25519 public key of a friend
 		 * @param {number}		command		Custom command beyond Detox chat spec to be interpreted by application, 0..223
 		 * @param {!Uint8Array}	data		Data been sent alongside command
 		 */
 		'custom_command' : (friend_id, command, data) !->
 			@_send(friend_id, command + CUSTOM_COMMANDS_OFFSET, data)
+		/**
+		 * Destroys chat instance
+		 */
 		'destroy' : !->
 			if @_destroyed
 				return
@@ -258,14 +272,14 @@ function Wrapper (detox-core, detox-crypto, detox-utils, fixed-size-multiplexer,
 			detox-crypto['ready'](ready)
 		'Chat'				: Chat
 		/**
-		 * Generate random seed that can be used as keypair seed
+		 * Generates random seed that can be used as keypair seed
 		 *
 		 * @return {!Uint8Array} 32 bytes
 		 */
 		'generate_seed'		: ->
 			random_bytes(ID_LENGTH)
 		/**
-		 * Generate random secret that can be used for friends connections
+		 * Generates random secret that can be used for friends connections
 		 *
 		 * @return {!Uint8Array} 32 bytes
 		 */

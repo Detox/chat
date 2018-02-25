@@ -65,7 +65,7 @@
       }
       asyncEventer.call(this);
       this._core_instance = core_instance;
-      this._real_key_seed = real_key_seed || detoxCore['generate_seed']();
+      this._real_key_seed = real_key_seed || random_bytes(ID_LENGTH);
       this._real_keypair = detoxCrypto['create_keypair'](this._real_key_seed);
       this._real_public_key = this._real_keypair['ed25519']['public'];
       this._number_of_introduction_nodes = number_of_introduction_nodes;
@@ -74,34 +74,34 @@
       this._connected_nodes = ArraySet();
       this._last_sent_date = 0;
       this._core_instance['once']('announced', function(real_public_key){
-        if (!this$._is_current_chat(real_public_key)) {
+        if (this$._destroyed || !this$._is_current_chat(real_public_key)) {
           return;
         }
         this$['fire']('announced');
       })['on']('connected', function(real_public_key, friend_id){
-        if (!this$._is_current_chat(real_public_key)) {
+        if (this$._destroyed || !this$._is_current_chat(real_public_key)) {
           return;
         }
         this$._connected_nodes.add(friend_id);
         this$['fire']('connected', friend_id);
       })['on']('connection_progress', function(real_public_key, friend_id, stage){
-        if (!this$._is_current_chat(real_public_key)) {
+        if (this$._destroyed || !this$._is_current_chat(real_public_key)) {
           return;
         }
         this$['fire']('connection_progress', friend_id, stage);
       })['on']('connection_failed', function(real_public_key, friend_id, reason){
-        if (!this$._is_current_chat(real_public_key)) {
+        if (this$._destroyed || !this$._is_current_chat(real_public_key)) {
           return;
         }
         this$['fire']('connection_failed', friend_id, reason);
       })['on']('disconnected', function(real_public_key, friend_id){
-        if (!this$._is_current_chat(real_public_key)) {
+        if (this$._destroyed || !this$._is_current_chat(real_public_key)) {
           return;
         }
         this$._connected_nodes['delete'](friend_id);
         this$['fire']('disconnected', friend_id);
       })['on']('introduction', function(data){
-        if (!(this$._is_current_chat(data['real_public_key']) && are_arrays_equal(APPLICATION, data['application'].subarray(0, APPLICATION.length)))) {
+        if (!(!this$._destroyed && this$._is_current_chat(data['real_public_key']) && are_arrays_equal(APPLICATION, data['application'].subarray(0, APPLICATION.length)))) {
           return;
         }
         return this$['fire']('introduction', data['target_id'], data['secret'], data['application']).then(function(){
@@ -111,7 +111,7 @@
         });
       })['on']('data', function(real_public_key, friend_id, received_command, received_data){
         var date_array, date, text_array;
-        if (!this$._is_current_chat(real_public_key)) {
+        if (this$._destroyed || !this$._is_current_chat(real_public_key)) {
           return;
         }
         switch (received_command) {
@@ -167,6 +167,8 @@
         this._core_instance['announce'](this._real_key_seed, this._number_of_introduction_nodes, Math.max(this._number_of_intermediate_nodes - 1, 1));
       }
       /**
+       * Establish connection with a friend
+       *
        * @param {!Uint8Array} friend_id	Ed25519 public key of a friend
        * @param {!uint8Array} secret		Secret used for connection to a friend
        */,
@@ -177,6 +179,8 @@
         this._core_instance['connect_to'](this._real_key_seed, friend_id, APPLICATION, secret, this._number_of_intermediate_nodes);
       }
       /**
+       * Send a nickname to a friend
+       *
        * @param {!Uint8Array}			friend_id	Ed25519 public key of a friend
        * @param {string|!Uint8Array}	nickname	Nickname as string or Uint8Array to be sent to a friend
        */,
@@ -190,8 +194,10 @@
         this._send(friend_id, COMMAND_NICKNAME, nickname);
       }
       /**
+       * Send a secret to a friend that will be used for future connections
+       *
        * @param {!Uint8Array} friend_id	Ed25519 public key of a friend
-       * @param {!Uint8Array} secret		Personal secret to be used by a friend on next connection
+       * @param {!Uint8Array} secret		Personal secret to be used by a friend for future connection
        */,
       'secret': function(friend_id, secret){
         var x$, secret_to_send;
@@ -203,6 +209,8 @@
         this._send(friend_id, COMMAND_SECRET, secret_to_send);
       }
       /**
+       * Send a text message to a friend
+       *
        * @param {!Uint8Array}			friend_id	Ed25519 public key of a friend
        * @param {string|!Uint8Array}	text		Text message to be sent to a friend (max 65527 bytes)
        *
@@ -232,13 +240,18 @@
         return current_date;
       }
       /**
+       * Send custom command
+       *
        * @param {!Uint8Array}	friend_id	Ed25519 public key of a friend
        * @param {number}		command		Custom command beyond Detox chat spec to be interpreted by application, 0..223
        * @param {!Uint8Array}	data		Data been sent alongside command
        */,
       'custom_command': function(friend_id, command, data){
         this._send(friend_id, command + CUSTOM_COMMANDS_OFFSET, data);
-      },
+      }
+      /**
+       * Destroys chat instance
+       */,
       'destroy': function(){
         if (this._destroyed) {
           return;
@@ -282,7 +295,7 @@
       },
       'Chat': Chat
       /**
-       * Generate random seed that can be used as keypair seed
+       * Generates random seed that can be used as keypair seed
        *
        * @return {!Uint8Array} 32 bytes
        */,
@@ -290,7 +303,7 @@
         return random_bytes(ID_LENGTH);
       }
       /**
-       * Generate random secret that can be used for friends connections
+       * Generates random secret that can be used for friends connections
        *
        * @return {!Uint8Array} 32 bytes
        */,
