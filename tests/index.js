@@ -17,7 +17,7 @@
   lib.ready(function(){
     test('Core', function(t){
       var generated_seed, generated_secret, bootstrap_node_info, x$, node_1_real_seed, node_1_real_public_key, y$, node_3_real_seed, node_3_real_public_key, nodes, wait_for, i$, to$;
-      t.plan(NUMBER_OF_NODES + 13);
+      t.plan(NUMBER_OF_NODES + 15);
       generated_seed = lib.generate_seed();
       t.ok(generated_seed instanceof Uint8Array, 'Seed is Uint8Array');
       t.equal(generated_seed.length, 32, 'Seed length is 32 bytes');
@@ -72,17 +72,24 @@
               chat_node_3.text_message(node_1_real_public_key, plaintext);
             }).on('text_message', function(arg$, arg1$, text){
               t.equal(text, plaintext, 'Correct text message received');
+            }).on('custom_command', function(arg$, command, data){
+              t.equal(command, 99, 'Custom command received correctly');
+              t.equal(Buffer.from(data).toString(), plaintext, 'Custom command data received correctly');
+              chat_node_1.destroy();
+              chat_node_3.destroy();
+              destroy_nodes();
             });
             chat_node_3.on('connected', function(){
               t.pass('Connected successfully');
               chat_node_3.on('received', function(){
                 t.pass('Text message received');
-                chat_node_1.destroy();
-                chat_node_3.destroy();
-                destroy_nodes();
+                chat_node_3.custom_command(node_1_real_public_key, 99, Buffer.from(plaintext));
               }).nickname(node_1_real_public_key, 'Node 3');
             }).on('connection_failed', function(arg$, reason){
               t.fail('Connection failed with code ' + reason);
+              chat_node_1.destroy();
+              chat_node_3.destroy();
+              destroy_nodes();
             });
             chat_node_3.connect_to(node_1_real_public_key, generated_secret);
           }, 5000);

@@ -8,6 +8,7 @@ const COMMAND_SECRET				= 1
 const COMMAND_NICKNAME				= 2
 const COMMAND_TEXT_MESSAGE			= 3
 const COMMAND_RECEIVED				= 4
+const CUSTOM_COMMANDS_OFFSET		= 32 # 5..31 are also reserved for future use, everything above is available for the user
 
 # TODO: Separate set of commands for direct connections (chat, file transfers, calls, etc.)
 
@@ -132,6 +133,10 @@ function Wrapper (detox-core, detox-crypto, detox-utils, fixed-size-multiplexer,
 						@'fire'('text_message', friend_id, date, array2string(text_array), text_array)
 					case COMMAND_RECEIVED
 						@'fire'('received', friend_id, date_to_number(received_data))
+					else
+						if received_command < CUSTOM_COMMANDS_OFFSET
+							return
+						@'fire'('custom_command', friend_id, received_command - CUSTOM_COMMANDS_OFFSET, received_data)
 			)
 
 	Chat.'CONNECTION_ERROR_CANT_FIND_INTRODUCTION_NODES'		= detox-core['CONNECTION_ERROR_CANT_FIND_INTRODUCTION_NODES']
@@ -213,6 +218,13 @@ function Wrapper (detox-core, detox-crypto, detox-utils, fixed-size-multiplexer,
 			@_last_sent_date	= current_date
 			@_send(friend_id, COMMAND_TEXT_MESSAGE, data)
 			current_date
+		/**
+		 * @param {!Uint8Array}	friend_id	Ed25519 public key of a friend
+		 * @param {number}		command		Custom command beyond Detox chat spec to be interpreted by application, 0..223
+		 * @param {!Uint8Array}	data		Data been sent alongside command
+		 */
+		'custom_command' : (friend_id, command, data) !->
+			@_send(friend_id, command + CUSTOM_COMMANDS_OFFSET, data)
 		'destroy' : !->
 			if @_destroyed
 				return

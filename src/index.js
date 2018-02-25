@@ -5,12 +5,13 @@
  * @license 0BSD
  */
 (function(){
-  var COMMAND_DIRECT_CONNECTION_SDP, COMMAND_SECRET, COMMAND_NICKNAME, COMMAND_TEXT_MESSAGE, COMMAND_RECEIVED, ID_LENGTH;
+  var COMMAND_DIRECT_CONNECTION_SDP, COMMAND_SECRET, COMMAND_NICKNAME, COMMAND_TEXT_MESSAGE, COMMAND_RECEIVED, CUSTOM_COMMANDS_OFFSET, ID_LENGTH;
   COMMAND_DIRECT_CONNECTION_SDP = 0;
   COMMAND_SECRET = 1;
   COMMAND_NICKNAME = 2;
   COMMAND_TEXT_MESSAGE = 3;
   COMMAND_RECEIVED = 4;
+  CUSTOM_COMMANDS_OFFSET = 32;
   ID_LENGTH = 32;
   /**
    * @param {!Uint8Array} array
@@ -137,6 +138,12 @@
           break;
         case COMMAND_RECEIVED:
           this$['fire']('received', friend_id, date_to_number(received_data));
+          break;
+        default:
+          if (received_command < CUSTOM_COMMANDS_OFFSET) {
+            return;
+          }
+          this$['fire']('custom_command', friend_id, received_command - CUSTOM_COMMANDS_OFFSET, received_data);
         }
       });
     }
@@ -223,6 +230,14 @@
         this._last_sent_date = current_date;
         this._send(friend_id, COMMAND_TEXT_MESSAGE, data);
         return current_date;
+      }
+      /**
+       * @param {!Uint8Array}	friend_id	Ed25519 public key of a friend
+       * @param {number}		command		Custom command beyond Detox chat spec to be interpreted by application, 0..223
+       * @param {!Uint8Array}	data		Data been sent alongside command
+       */,
+      'custom_command': function(friend_id, command, data){
+        this._send(friend_id, command + CUSTOM_COMMANDS_OFFSET, data);
       },
       'destroy': function(){
         if (this._destroyed) {
