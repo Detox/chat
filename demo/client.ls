@@ -75,8 +75,8 @@ for let i from 0 til NUMBER_OF_NODES
 	core_instance_1	= nodes[1]
 
 	log 'Creating chat instances...'
-	chat_seed_0		= detox-utils.hex2array('92a4765719c9800775887b0cb610501fae4a1e81546592cdda73caa26b180806')
-	chat_seed_1		= detox-utils.hex2array('6c6fe885001ec22a5708f6391df95635c2b97f57f06fe5042f7bc85758ad8fc8')
+	chat_seed_0		= detox-utils.random_bytes(32)
+	chat_seed_1		= detox-utils.random_bytes(32)
 	chat_keypair_0	= detox-crypto.create_keypair(chat_seed_0)
 	chat_keypair_1	= detox-crypto.create_keypair(chat_seed_1)
 	chat_instance_0	= detox-chat.Chat(core_instance_0, chat_seed_0)

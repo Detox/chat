@@ -68,8 +68,8 @@
         core_instance_0 = nodes[0];
         core_instance_1 = nodes[1];
         log('Creating chat instances...');
-        chat_seed_0 = detoxUtils.hex2array('92a4765719c9800775887b0cb610501fae4a1e81546592cdda73caa26b180806');
-        chat_seed_1 = detoxUtils.hex2array('6c6fe885001ec22a5708f6391df95635c2b97f57f06fe5042f7bc85758ad8fc8');
+        chat_seed_0 = detoxUtils.random_bytes(32);
+        chat_seed_1 = detoxUtils.random_bytes(32);
         chat_keypair_0 = detoxCrypto.create_keypair(chat_seed_0);
         chat_keypair_1 = detoxCrypto.create_keypair(chat_seed_1);
         chat_instance_0 = detoxChat.Chat(core_instance_0, chat_seed_0);
