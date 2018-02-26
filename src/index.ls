@@ -34,7 +34,7 @@ function date_to_array (number)
 	view.setFloat64(0, number, false)
 	array
 
-function Wrapper (detox-core, detox-crypto, detox-utils, fixed-size-multiplexer, async-eventer)
+function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer)
 	random_bytes		= detox-utils['random_bytes']
 	string2array		= detox-utils['string2array']
 	array2string		= detox-utils['array2string']
@@ -289,10 +289,10 @@ function Wrapper (detox-core, detox-crypto, detox-utils, fixed-size-multiplexer,
 
 if typeof define == 'function' && define['amd']
 	# AMD
-	define(['@detox/core', '@detox/crypto', '@detox/utils', 'fixed-size-multiplexer', 'async-eventer'], Wrapper)
+	define(['@detox/core', '@detox/crypto', '@detox/utils', 'async-eventer'], Wrapper)
 else if typeof exports == 'object'
 	# CommonJS
-	module.exports = Wrapper(require('@detox/core'), require('@detox/crypto'), require('@detox/utils'), require('fixed-size-multiplexer'), require('async-eventer'))
+	module.exports = Wrapper(require('@detox/core'), require('@detox/crypto'), require('@detox/utils'), require('async-eventer'))
 else
 	# Browser globals
-	@'detox_chat' = Wrapper(@'detox_core', @'detox_crypto', @'detox_utils', @'fixed_size_multiplexer', @'async_eventer')
+	@'detox_chat' = Wrapper(@'detox_core', @'detox_crypto', @'detox_utils', @'async_eventer')

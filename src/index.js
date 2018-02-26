@@ -35,7 +35,7 @@
     view.setFloat64(0, number, false);
     return array;
   }
-  function Wrapper(detoxCore, detoxCrypto, detoxUtils, fixedSizeMultiplexer, asyncEventer){
+  function Wrapper(detoxCore, detoxCrypto, detoxUtils, asyncEventer){
     var random_bytes, string2array, array2string, are_arrays_equal, concat_arrays, error_handler, ArraySet, APPLICATION;
     random_bytes = detoxUtils['random_bytes'];
     string2array = detoxUtils['string2array'];
@@ -313,10 +313,10 @@
     };
   }
   if (typeof define === 'function' && define['amd']) {
-    define(['@detox/core', '@detox/crypto', '@detox/utils', 'fixed-size-multiplexer', 'async-eventer'], Wrapper);
+    define(['@detox/core', '@detox/crypto', '@detox/utils', 'async-eventer'], Wrapper);
   } else if (typeof exports === 'object') {
-    module.exports = Wrapper(require('@detox/core'), require('@detox/crypto'), require('@detox/utils'), require('fixed-size-multiplexer'), require('async-eventer'));
+    module.exports = Wrapper(require('@detox/core'), require('@detox/crypto'), require('@detox/utils'), require('async-eventer'));
   } else {
-    this['detox_chat'] = Wrapper(this['detox_core'], this['detox_crypto'], this['detox_utils'], this['fixed_size_multiplexer'], this['async_eventer']);
+    this['detox_chat'] = Wrapper(this['detox_core'], this['detox_crypto'], this['detox_utils'], this['async_eventer']);
   }
 }).call(this);
