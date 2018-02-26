@@ -84,7 +84,7 @@ Send a secret to a friend that will be used for future connections
 
 * `friend_if` - Ed25519 public key of a friend
 * `command` - Custom command beyond Detox chat spec to be interpreted by application, 0..223
-* `data` - Data been sent alongside command
+* `data` - Data been sent alongside command (max 65535 bytes)
 
 ### detox_chat.Chat.destroy()
 Destroys chat instance.

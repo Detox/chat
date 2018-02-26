@@ -244,7 +244,7 @@
        *
        * @param {!Uint8Array}	friend_id	Ed25519 public key of a friend
        * @param {number}		command		Custom command beyond Detox chat spec to be interpreted by application, 0..223
-       * @param {!Uint8Array}	data		Data been sent alongside command
+       * @param {!Uint8Array}	data		Data been sent alongside command (max 65535 bytes)
        */,
       'custom_command': function(friend_id, command, data){
         this._send(friend_id, command + CUSTOM_COMMANDS_OFFSET, data);
