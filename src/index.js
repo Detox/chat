@@ -5,12 +5,13 @@
  * @license 0BSD
  */
 (function(){
-  var COMMAND_DIRECT_CONNECTION_SDP, COMMAND_SECRET, COMMAND_NICKNAME, COMMAND_TEXT_MESSAGE, COMMAND_RECEIVED, CUSTOM_COMMANDS_OFFSET, ID_LENGTH;
+  var COMMAND_DIRECT_CONNECTION_SDP, COMMAND_SECRET, COMMAND_SECRET_RECEIVED, COMMAND_NICKNAME, COMMAND_TEXT_MESSAGE, COMMAND_TEXT_MESSAGE_RECEIVED, CUSTOM_COMMANDS_OFFSET, ID_LENGTH;
   COMMAND_DIRECT_CONNECTION_SDP = 0;
   COMMAND_SECRET = 1;
-  COMMAND_NICKNAME = 2;
-  COMMAND_TEXT_MESSAGE = 3;
-  COMMAND_RECEIVED = 4;
+  COMMAND_SECRET_RECEIVED = 2;
+  COMMAND_NICKNAME = 3;
+  COMMAND_TEXT_MESSAGE = 4;
+  COMMAND_TEXT_MESSAGE_RECEIVED = 5;
   CUSTOM_COMMANDS_OFFSET = 32;
   ID_LENGTH = 32;
   /**
@@ -124,7 +125,11 @@
           if (received_data.length !== ID_LENGTH) {
             return;
           }
+          this$._send(friend_id, COMMAND_SECRET_RECEIVED, new Uint8Array(0));
           this$['fire']('secret', friend_id, received_data);
+          break;
+        case COMMAND_SECRET_RECEIVED:
+          this$['fire']('secret_received', friend_id);
           break;
         case COMMAND_TEXT_MESSAGE:
           if (received_data.length < 9) {
@@ -133,11 +138,11 @@
           date_array = received_data.subarray(0, 8);
           date = date_to_number(date_array);
           text_array = received_data.subarray(8);
-          this$._send(friend_id, COMMAND_RECEIVED, date_array);
+          this$._send(friend_id, COMMAND_TEXT_MESSAGE_RECEIVED, date_array);
           this$['fire']('text_message', friend_id, date, array2string(text_array), text_array);
           break;
-        case COMMAND_RECEIVED:
-          this$['fire']('received', friend_id, date_to_number(received_data));
+        case COMMAND_TEXT_MESSAGE_RECEIVED:
+          this$['fire']('text_message_received', friend_id, date_to_number(received_data));
           break;
         default:
           if (received_command < CUSTOM_COMMANDS_OFFSET) {

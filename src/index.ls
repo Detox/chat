@@ -5,9 +5,10 @@
  */
 const COMMAND_DIRECT_CONNECTION_SDP	= 0
 const COMMAND_SECRET				= 1
-const COMMAND_NICKNAME				= 2
-const COMMAND_TEXT_MESSAGE			= 3
-const COMMAND_RECEIVED				= 4
+const COMMAND_SECRET_RECEIVED		= 2
+const COMMAND_NICKNAME				= 3
+const COMMAND_TEXT_MESSAGE			= 4
+const COMMAND_TEXT_MESSAGE_RECEIVED	= 5
 const CUSTOM_COMMANDS_OFFSET		= 32 # 5..31 are also reserved for future use, everything above is available for the user
 
 # TODO: Separate set of commands for direct connections (chat, file transfers, calls, etc.)
@@ -123,17 +124,20 @@ function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer)
 					case COMMAND_SECRET
 						if received_data.length != ID_LENGTH
 							return
+						@_send(friend_id, COMMAND_SECRET_RECEIVED, new Uint8Array(0))
 						@'fire'('secret', friend_id, received_data)
+					case COMMAND_SECRET_RECEIVED
+						@'fire'('secret_received', friend_id)
 					case COMMAND_TEXT_MESSAGE
 						if received_data.length < 9 # Date + at least 1 character
 							return
 						date_array	= received_data.subarray(0, 8)
 						date		= date_to_number(date_array)
 						text_array	= received_data.subarray(8)
-						@_send(friend_id, COMMAND_RECEIVED, date_array)
+						@_send(friend_id, COMMAND_TEXT_MESSAGE_RECEIVED, date_array)
 						@'fire'('text_message', friend_id, date, array2string(text_array), text_array)
-					case COMMAND_RECEIVED
-						@'fire'('received', friend_id, date_to_number(received_data))
+					case COMMAND_TEXT_MESSAGE_RECEIVED
+						@'fire'('text_message_received', friend_id, date_to_number(received_data))
 					else
 						if received_command < CUSTOM_COMMANDS_OFFSET
 							return

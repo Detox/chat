@@ -131,9 +131,17 @@ Event is fired when `frind_id` sends a nickname.
 Payload consists of two arguments: `friend_id` (`Uint8Array`) and `secret` (`Uint8Array`).
 Event is fired when `frind_id` sends a secret.
 
+### Event: secret_received
+Payload consists of one argument `frind_id` (`Uint8Array`).
+Event is fired when `frind_id` received a secret.
+
 ### Event: text_message
-Payload consists of three arguments: `friend_id` (`Uint8Array`), `text_message_text` (`string`) and `text_message_array` (`Uint8Array`).
+Payload consists of four arguments: `friend_id` (`Uint8Array`), `date` (`number`), `text_message_text` (`string`) and `text_message_array` (`Uint8Array`).
 Event is fired when `frind_id` sends a text message.
+
+### Event: text_message_received
+Payload consists of two arguments: `friend_id` (`Uint8Array`) and `date` (`number`).
+Event is fired when `frind_id` received a text message.
 
 ### Event: custom_command
 Payload consists of three arguments: `friend_id` (`Uint8Array`), `command` (`number`) and `data` (`Uint8Array`).
