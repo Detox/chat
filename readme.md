@@ -56,25 +56,25 @@ Announce itself to the network (can operate without announcement).
 ### detox_chat.Chat.connect_to(friend_id : Uint8Array, secret : Uint8Array)
 Establish connection with a friend.
 
-* `friend_if` - Ed25519 public key of a friend
+* `friend_id` - Ed25519 public key of a friend
 * `secret` - Secret used for connection to a friend
 
 ### detox_chat.Chat.nickname(friend_id : Uint8Array, nickname : string|Uint8Array)
 Send a nickname to a friend.
 
-* `friend_if` - Ed25519 public key of a friend
+* `friend_id` - Ed25519 public key of a friend
 * `nickname` - Nickname to be sent
 
 ### detox_chat.Chat.secret(friend_id : Uint8Array, secret : Uint8Array)
 Send a secret to a friend that will be used for future connections
 
-* `friend_if` - Ed25519 public key of a friend
+* `friend_id` - Ed25519 public key of a friend
 * `secret` - Personal secret to be used by a friend for future connection
 
 ### detox_chat.Chat.text_message(friend_id : Uint8Array, text_message : string|Uint8Array) : number
 Send a text message to a friend.
 
-* `friend_if` - Ed25519 public key of a friend
+* `friend_id` - Ed25519 public key of a friend
 * `text_message` - Text message to be sent to a friend (max 65527 bytes)
 
 Returns unix timestamp in milliseconds of the message (0 if message is empty or too big or connection is not present).
@@ -82,7 +82,7 @@ Returns unix timestamp in milliseconds of the message (0 if message is empty or 
 ### detox_chat.Chat.custom_command(friend_id : Uint8Array, command : number, data : Uint8Array)
 Send a secret to a friend that will be used for future connections
 
-* `friend_if` - Ed25519 public key of a friend
+* `friend_id` - Ed25519 public key of a friend
 * `command` - Custom command beyond Detox chat spec to be interpreted by application, 0..223
 * `data` - Data been sent alongside command (max 65535 bytes)
 
