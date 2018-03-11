@@ -23,7 +23,7 @@
   lib.ready(function(){
     test('Core', function(t){
       var generated_seed, generated_secret, x$, node_1_real_seed, node_1_real_public_key, y$, node_3_real_seed, node_3_real_public_key, nodes, wait_for, i$, to$;
-      t.plan(NUMBER_OF_NODES + 16);
+      t.plan(NUMBER_OF_NODES + 18);
       generated_seed = lib.generate_seed();
       t.ok(generated_seed instanceof Uint8Array, 'Seed is Uint8Array');
       t.equal(generated_seed.length, 32, 'Seed length is 32 bytes');
@@ -65,33 +65,40 @@
             console.log('Connecting...');
             chat_node_1.on('introduction', function(arg$, secret){
               t.equal(secret.join(','), generated_secret.join(','), 'Correct secret received on introduction');
-            }).on('nickname', function(arg$, nickname){
-              t.equal(nickname, 'Node 3', 'Correct nickname received');
-              chat_node_3.secret(node_1_real_public_key, generated_secret);
             }).on('secret', function(arg$, secret){
-              t.equal(secret.join(','), generated_secret.join(','), 'Correct secret received in secret event');
+              t.equal(secret.join(','), generated_secret.join(','), 'Correct secret received in secret event on node 1');
+              chat_node_1.secret(node_3_real_public_key, generated_secret);
+            }).on('secret_received', function(){
+              t.pass('Secret received on node 1');
+            }).on('nickname', function(arg$, nickname){
+              t.equal(nickname, 'Node 3', 'Correct nickname received on node 1');
             }).on('text_message', function(arg$, arg1$, text){
-              t.equal(text, plaintext, 'Correct text message receivedin text_message event');
+              t.equal(text, plaintext, 'Correct text message received in text_message event on node 1');
             }).on('custom_command', function(arg$, command, data){
-              t.equal(command, 99, 'Custom command received correctly');
-              t.equal(Buffer.from(data).toString(), plaintext, 'Custom command data received correctly');
+              t.equal(command, 99, 'Custom command received correctly on node 1');
+              t.equal(Buffer.from(data).toString(), plaintext, 'Custom command data received correctly on node 1');
               chat_node_1.destroy();
               chat_node_3.destroy();
               destroy_nodes();
             });
             chat_node_3.on('connected', function(){
               t.pass('Connected successfully');
-              chat_node_3.nickname(node_1_real_public_key, 'Node 3');
+              chat_node_3.secret(node_1_real_public_key, generated_secret);
             }).on('connection_failed', function(arg$, reason){
               t.fail('Connection failed with code ' + reason);
               chat_node_1.destroy();
               chat_node_3.destroy();
               destroy_nodes();
             }).on('secret_received', function(){
-              t.pass('Secret received');
-              chat_node_3.text_message(node_1_real_public_key, plaintext);
+              t.pass('Secret received on node 3');
+            }).on('secret', function(arg$, secret){
+              var x$;
+              t.equal(secret.join(','), generated_secret.join(','), 'Correct secret received in secret event on node 3');
+              x$ = chat_node_3;
+              x$.nickname(node_1_real_public_key, 'Node 3');
+              x$.text_message(node_1_real_public_key, plaintext);
             }).on('text_message_received', function(){
-              t.pass('Text message received');
+              t.pass('Text message received on node 3');
               chat_node_3.custom_command(node_1_real_public_key, 99, Buffer.from(plaintext));
             });
             chat_node_3.connect_to(node_1_real_public_key, generated_secret);

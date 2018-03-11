@@ -73,6 +73,8 @@
       this._number_of_intermediate_nodes = number_of_intermediate_nodes;
       this._max_data_size = this._core_instance['get_max_data_size']();
       this._connected_nodes = ArraySet();
+      this._connection_secret_updated_local = ArraySet();
+      this._connection_secret_updated_remote = ArraySet();
       this._last_sent_date = 0;
       this._core_instance['once']('announced', function(real_public_key){
         if (this$._destroyed || !this$._is_current_chat(real_public_key)) {
@@ -100,6 +102,8 @@
           return;
         }
         this$._connected_nodes['delete'](friend_id);
+        this$._connection_secret_updated_local['delete'](friend_id);
+        this$._connection_secret_updated_remote['delete'](friend_id);
         this$['fire']('disconnected', friend_id);
       })['on']('introduction', function(data){
         if (!(!this$._destroyed && this$._is_current_chat(data['real_public_key']) && are_arrays_equal(APPLICATION, data['application'].subarray(0, APPLICATION.length)))) {
@@ -107,29 +111,35 @@
         }
         return this$['fire']('introduction', data['target_id'], data['secret'], data['application']).then(function(){
           data['number_of_intermediate_nodes'] = Math.max(this$._number_of_intermediate_nodes - 1, 1);
-        })['catch'](function(error){
-          error_handler(error);
-        });
+        })['catch'](error_handler);
       })['on']('data', function(real_public_key, friend_id, received_command, received_data){
         var date_array, date, text_array;
         if (this$._destroyed || !this$._is_current_chat(real_public_key)) {
           return;
         }
+        if (!((received_command === COMMAND_SECRET || received_command === COMMAND_SECRET_RECEIVED) || this$._secrets_updated(friend_id))) {
+          return;
+        }
         switch (received_command) {
         case COMMAND_DIRECT_CONNECTION_SDP:
-          break;
-        case COMMAND_NICKNAME:
-          this$['fire']('nickname', friend_id, array2string(received_data), received_data);
           break;
         case COMMAND_SECRET:
           if (received_data.length !== ID_LENGTH) {
             return;
           }
-          this$._send(friend_id, COMMAND_SECRET_RECEIVED, new Uint8Array(0));
-          this$['fire']('secret', friend_id, received_data);
+          this$['fire']('secret', friend_id, received_data).then(function(){
+            this$._connection_secret_updated_remote.add(friend_id);
+            this$._send(friend_id, COMMAND_SECRET_RECEIVED, new Uint8Array(0));
+          })['catch'](error_handler);
           break;
         case COMMAND_SECRET_RECEIVED:
+          if (!this$._connection_secret_updated_local.has(friend_id)) {
+            return;
+          }
           this$['fire']('secret_received', friend_id);
+          break;
+        case COMMAND_NICKNAME:
+          this$['fire']('nickname', friend_id, array2string(received_data), received_data);
           break;
         case COMMAND_TEXT_MESSAGE:
           if (received_data.length < 9) {
@@ -211,6 +221,7 @@
         }
         x$ = secret_to_send = new Uint8Array(ID_LENGTH);
         x$.set(secret);
+        this._connection_secret_updated_local.add(friend_id);
         this._send(friend_id, COMMAND_SECRET, secret_to_send);
       }
       /**
@@ -270,6 +281,14 @@
        */,
       _is_current_chat: function(real_public_key){
         return are_arrays_equal(this._real_public_key, real_public_key);
+      }
+      /**
+       * @param {!Uint8Array} friend_id
+       *
+       * @return {boolean}
+       */,
+      _secrets_updated: function(friend_id){
+        return this._connection_secret_updated_local.has(friend_id) && this._connection_secret_updated_remote.has(friend_id);
       }
       /**
        * @param {!Uint8Array}	friend_id

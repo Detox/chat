@@ -3,6 +3,7 @@
  * @author  Nazar Mokrynskyi <nazar@mokrynskyi.com>
  * @license 0BSD
  */
+# WARNING: This is only for demo purposes, if you want real-world usage example, take a look at https://github.com/Detox/chat-app
 requirejs.config(
 	baseUrl		: '/node_modules/'
 	paths		:
@@ -91,7 +92,21 @@ for let i from 0 til NUMBER_OF_NODES
 		log 'Announced, connecting from node 0 to node 1...'
 		chat_instance_0
 			.on('connected', !->
-				log 'Connected, you can chat now!'
+				log 'Connected, updating secrets...'
+
+				wait_for	= 4
+				!function ready
+					--wait_for
+					if !wait_for
+						log 'Connected, you can chat now!'
+				chat_instance_0
+					..secret(chat_keypair_1.ed25519.public, new Uint8Array(32))
+					..on('secret', ready)
+					..on('secret_received', ready)
+				chat_instance_1
+					..secret(chat_keypair_0.ed25519.public, new Uint8Array(32))
+					..on('secret', ready)
+					..on('secret_received', ready)
 			)
 			.on('connection_failed', (, reason) !->
 				log "Connection failed, reason code #reason, trying again in 1s"

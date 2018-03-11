@@ -82,7 +82,23 @@
           chat_instance_1.on('announced', function(){
             log('Announced, connecting from node 0 to node 1...');
             chat_instance_0.on('connected', function(){
-              log('Connected, you can chat now!');
+              var wait_for, x$, y$;
+              log('Connected, updating secrets...');
+              wait_for = 4;
+              function ready(){
+                --wait_for;
+                if (!wait_for) {
+                  log('Connected, you can chat now!');
+                }
+              }
+              x$ = chat_instance_0;
+              x$.secret(chat_keypair_1.ed25519['public'], new Uint8Array(32));
+              x$.on('secret', ready);
+              x$.on('secret_received', ready);
+              y$ = chat_instance_1;
+              y$.secret(chat_keypair_0.ed25519['public'], new Uint8Array(32));
+              y$.on('secret', ready);
+              y$.on('secret_received', ready);
             }).on('connection_failed', function(arg$, reason){
               log("Connection failed, reason code " + reason + ", trying again in 1s");
               detoxUtils.timeoutSet(1, function(){

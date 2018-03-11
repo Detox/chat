@@ -119,6 +119,8 @@ Event is fired when there is a progress in the process of connecting to `friend_
 Payload consists of one argument `frind_id` (`Uint8Array`).
 Event is fired when connection to `frind_id` succeeded.
 
+NOTE: Secrets are required to be updated by both sides before any further communication takes place.
+
 ### Event: disconnected
 Payload consists of one argument `frind_id` (`Uint8Array`).
 Event is fired when `frind_id` disconnected for whatever reason.
@@ -130,6 +132,8 @@ Event is fired when `frind_id` sends a nickname.
 ### Event: secret
 Payload consists of two arguments: `friend_id` (`Uint8Array`) and `secret` (`Uint8Array`).
 Event is fired when `frind_id` sends a secret.
+
+If event is rejected (by returning `false` or rejected `Promise` from callback), then `secret_received` is not sent back to `friend_id`, which means that updated secret was not accepted (if it was used before already or for some other reason).
 
 ### Event: secret_received
 Payload consists of one argument `frind_id` (`Uint8Array`).

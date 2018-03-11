@@ -68,8 +68,10 @@ function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer)
 		@_number_of_intermediate_nodes	= number_of_intermediate_nodes
 		@_max_data_size					= @_core_instance['get_max_data_size']()
 
-		@_connected_nodes				= ArraySet()
-		@_last_sent_date				= 0
+		@_connected_nodes					= ArraySet()
+		@_connection_secret_updated_local	= ArraySet()
+		@_connection_secret_updated_remote	= ArraySet()
+		@_last_sent_date					= 0
 
 		@_core_instance
 			.'once'('announced', (real_public_key) !~>
@@ -97,6 +99,8 @@ function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer)
 				if @_destroyed || !@_is_current_chat(real_public_key)
 					return
 				@_connected_nodes.delete(friend_id)
+				@_connection_secret_updated_local.delete(friend_id)
+				@_connection_secret_updated_remote.delete(friend_id)
 				@'fire'('disconnected', friend_id)
 			)
 			.'on'('introduction', (data) ~>
@@ -109,25 +113,36 @@ function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer)
 				@'fire'('introduction', data['target_id'], data['secret'], data['application'])
 					.then !~>
 						data['number_of_intermediate_nodes']	= Math.max(@_number_of_intermediate_nodes - 1, 1)
-					.catch (error) !~>
-						error_handler(error)
+					.catch(error_handler)
 			)
 			.'on'('data', (real_public_key, friend_id, received_command, received_data) !~>
 				if @_destroyed || !@_is_current_chat(real_public_key)
+					return
+				# We reject all other commands until secrets were updated on both sides
+				if !(
+					received_command in [COMMAND_SECRET, COMMAND_SECRET_RECEIVED] ||
+					@_secrets_updated(friend_id)
+				)
 					return
 				switch received_command
 					case COMMAND_DIRECT_CONNECTION_SDP
 						# TODO
 						void
-					case COMMAND_NICKNAME
-						@'fire'('nickname', friend_id, array2string(received_data), received_data)
 					case COMMAND_SECRET
 						if received_data.length != ID_LENGTH
 							return
-						@_send(friend_id, COMMAND_SECRET_RECEIVED, new Uint8Array(0))
+						# Application can reject to accept updated secret if it was used before already or for some other reason
 						@'fire'('secret', friend_id, received_data)
+							.then !~>
+								@_connection_secret_updated_remote.add(friend_id)
+								@_send(friend_id, COMMAND_SECRET_RECEIVED, new Uint8Array(0))
+							.catch(error_handler)
 					case COMMAND_SECRET_RECEIVED
+						if !@_connection_secret_updated_local.has(friend_id)
+							return
 						@'fire'('secret_received', friend_id)
+					case COMMAND_NICKNAME
+						@'fire'('nickname', friend_id, array2string(received_data), received_data)
 					case COMMAND_TEXT_MESSAGE
 						if received_data.length < 9 # Date + at least 1 character
 							return
@@ -206,6 +221,7 @@ function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer)
 				return
 			secret_to_send	= new Uint8Array(ID_LENGTH)
 				..set(secret)
+			@_connection_secret_updated_local.add(friend_id)
 			@_send(friend_id, COMMAND_SECRET, secret_to_send)
 		/**
 		 * Send a text message to a friend
@@ -254,6 +270,13 @@ function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer)
 		 */
 		_is_current_chat : (real_public_key) ->
 			are_arrays_equal(@_real_public_key, real_public_key)
+		/**
+		 * @param {!Uint8Array} friend_id
+		 *
+		 * @return {boolean}
+		 */
+		_secrets_updated : (friend_id) ->
+			@_connection_secret_updated_local.has(friend_id) && @_connection_secret_updated_remote.has(friend_id)
 		/**
 		 * @param {!Uint8Array}	friend_id
 		 * @param {number}		command
