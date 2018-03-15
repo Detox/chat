@@ -72,7 +72,7 @@
               t.pass('Secret received on node 1');
             }).on('nickname', function(arg$, nickname){
               t.equal(nickname, 'Node 3', 'Correct nickname received on node 1');
-            }).on('text_message', function(arg$, arg1$, text){
+            }).on('text_message', function(arg$, arg1$, arg2$, text){
               t.equal(text, plaintext, 'Correct text message received in text_message event on node 1');
             }).on('custom_command', function(arg$, command, data){
               t.equal(command, 99, 'Custom command received correctly on node 1');
@@ -96,7 +96,7 @@
               t.equal(secret.join(','), generated_secret.join(','), 'Correct secret received in secret event on node 3');
               x$ = chat_node_3;
               x$.nickname(node_1_real_public_key, 'Node 3');
-              x$.text_message(node_1_real_public_key, plaintext);
+              x$.text_message(node_1_real_public_key, +new Date, plaintext);
             }).on('text_message_received', function(){
               t.pass('Text message received on node 3');
               chat_node_3.custom_command(node_1_real_public_key, 99, Buffer.from(plaintext));

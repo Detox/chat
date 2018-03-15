@@ -71,13 +71,14 @@ Send a secret to a friend that will be used for future connections
 * `friend_id` - Ed25519 public key of a friend
 * `secret` - Personal secret to be used by a friend for future connection
 
-### detox_chat.Chat.text_message(friend_id : Uint8Array, text_message : string|Uint8Array) : number
+### detox_chat.Chat.text_message(friend_id : Uint8Array, date_written : number, text_message : string|Uint8Array) : number
 Send a text message to a friend.
 
 * `friend_id` - Ed25519 public key of a friend
-* `text_message` - Text message to be sent to a friend (max 65527 bytes)
+* `date_written` - Unix timestamp in milliseconds when message was written
+* `text_message` - Text message to be sent to a friend (max 65519 bytes)
 
-Returns unix timestamp in milliseconds of the message (0 if message is empty or too big or connection is not present).
+Returns unix timestamp in milliseconds when the message was sent (0 if message is empty or too big or connection is not present).
 
 ### detox_chat.Chat.custom_command(friend_id : Uint8Array, command : number, data : Uint8Array)
 Send a secret to a friend that will be used for future connections
@@ -140,7 +141,9 @@ Payload consists of one argument `frind_id` (`Uint8Array`).
 Event is fired when `frind_id` received a secret.
 
 ### Event: text_message
-Payload consists of four arguments: `friend_id` (`Uint8Array`), `date` (`number`), `text_message_text` (`string`) and `text_message_array` (`Uint8Array`).
+Payload consists of five arguments: `friend_id` (`Uint8Array`), `date_sent` (`number`), `date_written` (`number`), `text_message_text` (`string`) and `text_message_array` (`Uint8Array`).
+`date_sent` always increases (and never repeats), otherwise message should be rejected by application.
+`date_written` never decreases (may repeat a few times), otherwise message should be rejected by application.
 Event is fired when `frind_id` sends a text message.
 
 ### Event: text_message_received

@@ -97,7 +97,7 @@ test('Core', (t) !->
 					.on('nickname', (, nickname) !->
 						t.equal(nickname, 'Node 3', 'Correct nickname received on node 1')
 					)
-					.on('text_message', (, , text) !->
+					.on('text_message', (, , , text) !->
 						t.equal(text, plaintext, 'Correct text message received in text_message event on node 1')
 					)
 					.on('custom_command', (, command, data) !->
@@ -129,7 +129,7 @@ test('Core', (t) !->
 
 						chat_node_3
 							..nickname(node_1_real_public_key, 'Node 3')
-							..text_message(node_1_real_public_key, plaintext)
+							..text_message(node_1_real_public_key, +(new Date), plaintext)
 					)
 					.on('text_message_received', !->
 						t.pass('Text message received on node 3')

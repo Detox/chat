@@ -75,7 +75,7 @@
       this._connected_nodes = ArraySet();
       this._connection_secret_updated_local = ArraySet();
       this._connection_secret_updated_remote = ArraySet();
-      this._last_sent_date = 0;
+      this._last_date_sent = 0;
       this._core_instance['once']('announced', function(real_public_key){
         if (this$._destroyed || !this$._is_current_chat(real_public_key)) {
           return;
@@ -113,7 +113,7 @@
           data['number_of_intermediate_nodes'] = Math.max(this$._number_of_intermediate_nodes - 1, 1);
         })['catch'](error_handler);
       })['on']('data', function(real_public_key, friend_id, received_command, received_data){
-        var date_array, date, text_array;
+        var date_sent_array, date_sent, date_written_array, date_written, text_array;
         if (this$._destroyed || !this$._is_current_chat(real_public_key)) {
           return;
         }
@@ -145,11 +145,13 @@
           if (received_data.length < 9) {
             return;
           }
-          date_array = received_data.subarray(0, 8);
-          date = date_to_number(date_array);
-          text_array = received_data.subarray(8);
-          this$._send(friend_id, COMMAND_TEXT_MESSAGE_RECEIVED, date_array);
-          this$['fire']('text_message', friend_id, date, array2string(text_array), text_array);
+          date_sent_array = received_data.subarray(0, 8);
+          date_sent = date_to_number(date_sent_array);
+          date_written_array = received_data.subarray(8, 16);
+          date_written = date_to_number(date_written_array);
+          text_array = received_data.subarray(16);
+          this$._send(friend_id, COMMAND_TEXT_MESSAGE_RECEIVED, date_sent_array);
+          this$['fire']('text_message', friend_id, date_sent, date_written, array2string(text_array), text_array);
           break;
         case COMMAND_TEXT_MESSAGE_RECEIVED:
           this$['fire']('text_message_received', friend_id, date_to_number(received_data));
@@ -227,13 +229,14 @@
       /**
        * Send a text message to a friend
        *
-       * @param {!Uint8Array}			friend_id	Ed25519 public key of a friend
-       * @param {string|!Uint8Array}	text		Text message to be sent to a friend (max 65527 bytes)
+       * @param {!Uint8Array}			friend_id		Ed25519 public key of a friend
+       * @param {number}				date_written	Unix timestamp in milliseconds when message was written
+       * @param {string|!Uint8Array}	text			Text message to be sent to a friend (max 65519 bytes)
        *
-       * @return {number} Unix timestamp in milliseconds of the message (0 if message is empty or too big or connection is not present)
+       * @return {number} Unix timestamp in milliseconds when the message was sent (0 if message is empty or too big or connection is not present)
        */,
-      'text_message': function(friend_id, text){
-        var current_date, data;
+      'text_message': function(friend_id, date_written, text){
+        var date_sent, data;
         if (this._destroyed || !this._connected_nodes.has(friend_id)) {
           return 0;
         }
@@ -243,17 +246,17 @@
         if (!text.length) {
           return 0;
         }
-        current_date = +new Date;
-        if (current_date <= this._last_sent_date) {
-          current_date = this._last_sent_date + 1;
+        date_sent = +new Date;
+        if (date_sent <= this._last_date_sent) {
+          date_sent = this._last_date_sent + 1;
         }
-        data = concat_arrays([date_to_array(current_date), text]);
+        data = concat_arrays([date_to_array(date_sent), date_to_array(date_written), text]);
         if (data.length > this._max_data_size) {
           return 0;
         }
-        this._last_sent_date = current_date;
+        this._last_date_sent = date_sent;
         this._send(friend_id, COMMAND_TEXT_MESSAGE, data);
-        return current_date;
+        return date_sent;
       }
       /**
        * Send custom command
@@ -301,7 +304,6 @@
     };
     Chat.prototype = Object.assign(Object.create(asyncEventer.prototype), Chat.prototype);
     Object.defineProperty(Chat.prototype, 'constructor', {
-      enumerable: false,
       value: Chat
     });
     return {

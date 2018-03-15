@@ -71,7 +71,7 @@ function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer)
 		@_connected_nodes					= ArraySet()
 		@_connection_secret_updated_local	= ArraySet()
 		@_connection_secret_updated_remote	= ArraySet()
-		@_last_sent_date					= 0
+		@_last_date_sent					= 0
 
 		@_core_instance
 			.'once'('announced', (real_public_key) !~>
@@ -146,11 +146,13 @@ function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer)
 					case COMMAND_TEXT_MESSAGE
 						if received_data.length < 9 # Date + at least 1 character
 							return
-						date_array	= received_data.subarray(0, 8)
-						date		= date_to_number(date_array)
-						text_array	= received_data.subarray(8)
-						@_send(friend_id, COMMAND_TEXT_MESSAGE_RECEIVED, date_array)
-						@'fire'('text_message', friend_id, date, array2string(text_array), text_array)
+						date_sent_array		= received_data.subarray(0, 8)
+						date_sent			= date_to_number(date_sent_array)
+						date_written_array	= received_data.subarray(8, 16)
+						date_written		= date_to_number(date_written_array)
+						text_array			= received_data.subarray(16)
+						@_send(friend_id, COMMAND_TEXT_MESSAGE_RECEIVED, date_sent_array)
+						@'fire'('text_message', friend_id, date_sent, date_written, array2string(text_array), text_array)
 					case COMMAND_TEXT_MESSAGE_RECEIVED
 						@'fire'('text_message_received', friend_id, date_to_number(received_data))
 					else
@@ -226,27 +228,28 @@ function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer)
 		/**
 		 * Send a text message to a friend
 		 *
-		 * @param {!Uint8Array}			friend_id	Ed25519 public key of a friend
-		 * @param {string|!Uint8Array}	text		Text message to be sent to a friend (max 65527 bytes)
+		 * @param {!Uint8Array}			friend_id		Ed25519 public key of a friend
+		 * @param {number}				date_written	Unix timestamp in milliseconds when message was written
+		 * @param {string|!Uint8Array}	text			Text message to be sent to a friend (max 65519 bytes)
 		 *
-		 * @return {number} Unix timestamp in milliseconds of the message (0 if message is empty or too big or connection is not present)
+		 * @return {number} Unix timestamp in milliseconds when the message was sent (0 if message is empty or too big or connection is not present)
 		 */
-		'text_message' : (friend_id, text) ->
+		'text_message' : (friend_id, date_written, text) ->
 			if @_destroyed || !@_connected_nodes.has(friend_id)
 				return 0
 			if typeof text == 'string'
 				text	= string2array(text)
 			if !text.length
 				return 0
-			current_date	= +(new Date)
-			if current_date <= @_last_sent_date
-				current_date	= @_last_sent_date + 1
-			data	= concat_arrays([date_to_array(current_date), text])
+			date_sent	= +(new Date)
+			if date_sent <= @_last_date_sent
+				date_sent	= @_last_date_sent + 1
+			data	= concat_arrays([date_to_array(date_sent), date_to_array(date_written), text])
 			if data.length > @_max_data_size
 				return 0
-			@_last_sent_date	= current_date
+			@_last_date_sent	= date_sent
 			@_send(friend_id, COMMAND_TEXT_MESSAGE, data)
-			current_date
+			date_sent
 		/**
 		 * Send custom command
 		 *
@@ -287,7 +290,7 @@ function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer)
 
 	Chat:: = Object.assign(Object.create(async-eventer::), Chat::)
 
-	Object.defineProperty(Chat::, 'constructor', {enumerable: false, value: Chat})
+	Object.defineProperty(Chat::, 'constructor', {value: Chat})
 	{
 		'ready'				: (callback) !->
 			wait_for	= 2
