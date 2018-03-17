@@ -42,6 +42,12 @@ Generates random seed that can be used as keypair seed in `detox_chat.Chat` cons
 ### detox_chat.generate_secret() : Uint8Array
 Generates random secret that can be used for friends connections.
 
+### detox_chat.id_encode(public_key : Uint8Array, secret : Uint8Array) : string
+Encodes public key and secret into base58 string with built-in checksum.
+
+### detox_chat.id_decode(string : string) : Uint8Array[]
+Decodes encoded public key and secret from base58 string and checks built-in checksum.
+
 ### detox_chat.Chat(core_instance : Object, real_key_seed = null : Uint8Array, number_of_introduction_nodes = 1 : number, number_of_intermediate_nodes = 3 : number) : detox_chat.Chat
 Constructor for Chat object, uses Detox core instance for connection to the network.
 

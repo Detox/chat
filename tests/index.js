@@ -5,9 +5,10 @@
  * @license 0BSD
  */
 (function(){
-  var detoxCore, detoxCrypto, lib, test, NUMBER_OF_NODES, bootstrap_node_id, bootstrap_ip, bootstrap_port, bootstrap_node_info, plaintext;
+  var detoxCore, detoxCrypto, detoxUtils, lib, test, NUMBER_OF_NODES, bootstrap_node_id, bootstrap_ip, bootstrap_port, bootstrap_node_info, plaintext, expected_public_key, expected_secret, expected_id;
   detoxCore = require('@detox/core');
   detoxCrypto = require('@detox/crypto');
+  detoxUtils = require('@detox/utils');
   lib = require('..');
   test = require('tape');
   NUMBER_OF_NODES = 10;
@@ -20,16 +21,21 @@
     port: bootstrap_port
   };
   plaintext = 'Hello, Detox chat!';
+  expected_public_key = Buffer.from('09d174678b66eeebbd7f4fa4a427adc7c3aa172703b8c4844344f168f0e2c6eb', 'hex');
+  expected_secret = Buffer.from('0a3b582115fd9be7b581a3282b587a8b27d8087f30e602328253abcd552d3291', 'hex');
+  expected_id = '4poWr1r1hnXUjo7ED7T1R2gU9wfeBxkAfX8fcnMYQe2QyXT9BC3wMKB1MqE6bNBHBCy6BqzZoMhdLaNjfNoQnVAnVC';
   lib.ready(function(){
     test('Core', function(t){
       var generated_seed, generated_secret, x$, node_1_real_seed, node_1_real_public_key, y$, node_3_real_seed, node_3_real_public_key, nodes, wait_for, i$, to$;
-      t.plan(NUMBER_OF_NODES + 18);
+      t.plan(NUMBER_OF_NODES + 20);
       generated_seed = lib.generate_seed();
       t.ok(generated_seed instanceof Uint8Array, 'Seed is Uint8Array');
       t.equal(generated_seed.length, 32, 'Seed length is 32 bytes');
       generated_secret = lib.generate_secret();
       t.ok(generated_secret instanceof Uint8Array, 'Secret is Uint8Array');
       t.equal(generated_secret.length, 32, 'Secret length is 32 bytes');
+      t.equal(lib.id_encode(expected_public_key, expected_secret), expected_id, 'Encoded ID correctly');
+      t.equal(detoxUtils.concat_arrays(lib.id_decode(expected_id)).join(','), detoxUtils.concat_arrays([expected_public_key, expected_secret]).join(','), 'Decoded ID correctly');
       x$ = node_1_real_seed = new Uint8Array(32);
       x$.set([1, 1]);
       node_1_real_public_key = detoxCrypto.create_keypair(node_1_real_seed).ed25519['public'];

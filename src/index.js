@@ -37,7 +37,7 @@
     return array;
   }
   function Wrapper(detoxCore, detoxCrypto, detoxUtils, asyncEventer){
-    var random_bytes, string2array, array2string, are_arrays_equal, concat_arrays, error_handler, ArraySet, APPLICATION;
+    var random_bytes, string2array, array2string, are_arrays_equal, concat_arrays, error_handler, ArraySet, base58_encode, base58_decode, sha3_256, APPLICATION;
     random_bytes = detoxUtils['random_bytes'];
     string2array = detoxUtils['string2array'];
     array2string = detoxUtils['array2string'];
@@ -45,6 +45,9 @@
     concat_arrays = detoxUtils['concat_arrays'];
     error_handler = detoxUtils['error_handler'];
     ArraySet = detoxUtils['ArraySet'];
+    base58_encode = detoxUtils['base58_encode'];
+    base58_decode = detoxUtils['base58_decode'];
+    sha3_256 = detoxCrypto['sha3_256'];
     APPLICATION = string2array('detox-chat-v0');
     /**
      * @constructor
@@ -303,6 +306,60 @@
       }
     };
     Chat.prototype = Object.assign(Object.create(asyncEventer.prototype), Chat.prototype);
+    /**
+     * @param {!Uint8Array} payload
+     *
+     * @return {string}
+     */
+    function base58_check_encode(payload){
+      var checksum;
+      checksum = detoxCrypto['sha3_256'](payload).subarray(0, 2);
+      return base58_encode(concat_arrays([payload, checksum]));
+    }
+    /**
+     * @param {string} string
+     *
+     * @return {!Uint8Array}
+     *
+     * @throws {Error}
+     */
+    function base58_check_decode(string){
+      var decoded_array, payload, checksum;
+      decoded_array = base58_decode(string);
+      payload = decoded_array.subarray(0, -2);
+      checksum = decoded_array.subarray(-2);
+      if (!are_arrays_equal(sha3_256(payload).subarray(0, 2), checksum)) {
+        throw new Error('Checksum is not correct');
+      }
+      return payload;
+    }
+    /**
+     * Encodes public key and secret into base58 string with built-in checksum
+     *
+     * @param {!Uint8Array} public_key
+     * @param {!Uint8Array} secret
+     *
+     * @return {string}
+     */
+    function id_encode(public_key, secret){
+      return base58_check_encode(concat_arrays([public_key, secret]));
+    }
+    /**
+     * Decodes encoded public key and secret from base58 string and checks built-in checksum
+     *
+     * @param {string} string
+     *
+     * @return {!Uint8Array[]} [public_key, secret]
+     *
+     * @throws {Error} When checksum is not correct
+     */
+    function id_decode(string){
+      var payload, public_key, secret;
+      payload = base58_check_decode(string);
+      public_key = payload.subarray(0, ID_LENGTH);
+      secret = payload.subarray(ID_LENGTH);
+      return [public_key, secret];
+    }
     Object.defineProperty(Chat.prototype, 'constructor', {
       value: Chat
     });
@@ -335,7 +392,9 @@
        */,
       'generate_secret': function(){
         return random_bytes(ID_LENGTH);
-      }
+      },
+      'id_encode': id_encode,
+      'id_decode': id_decode
     };
   }
   if (typeof define === 'function' && define['amd']) {

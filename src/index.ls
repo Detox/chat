@@ -43,6 +43,9 @@ function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer)
 	concat_arrays		= detox-utils['concat_arrays']
 	error_handler		= detox-utils['error_handler']
 	ArraySet			= detox-utils['ArraySet']
+	base58_encode		= detox-utils['base58_encode']
+	base58_decode		= detox-utils['base58_decode']
+	sha3_256			= detox-crypto['sha3_256']
 
 	const APPLICATION	= string2array('detox-chat-v0')
 	/**
@@ -290,6 +293,53 @@ function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer)
 
 	Chat:: = Object.assign(Object.create(async-eventer::), Chat::)
 
+	/**
+	 * @param {!Uint8Array} payload
+	 *
+	 * @return {string}
+	 */
+	function base58_check_encode (payload)
+		checksum	= detox-crypto['sha3_256'](payload).subarray(0, 2)
+		base58_encode(concat_arrays([payload, checksum]))
+	/**
+	 * @param {string} string
+	 *
+	 * @return {!Uint8Array}
+	 *
+	 * @throws {Error}
+	 */
+	function base58_check_decode (string)
+		decoded_array	= base58_decode(string)
+		payload			= decoded_array.subarray(0, -2)
+		checksum		= decoded_array.subarray(-2)
+		if !are_arrays_equal(sha3_256(payload).subarray(0, 2), checksum)
+			throw new Error('Checksum is not correct')
+		payload
+	/**
+	 * Encodes public key and secret into base58 string with built-in checksum
+	 *
+	 * @param {!Uint8Array} public_key
+	 * @param {!Uint8Array} secret
+	 *
+	 * @return {string}
+	 */
+	function id_encode (public_key, secret)
+		base58_check_encode(concat_arrays([public_key, secret]))
+	/**
+	 * Decodes encoded public key and secret from base58 string and checks built-in checksum
+	 *
+	 * @param {string} string
+	 *
+	 * @return {!Uint8Array[]} [public_key, secret]
+	 *
+	 * @throws {Error} When checksum is not correct
+	 */
+	function id_decode (string)
+		payload		= base58_check_decode(string)
+		public_key	= payload.subarray(0, ID_LENGTH)
+		secret		= payload.subarray(ID_LENGTH)
+		[public_key, secret]
+
 	Object.defineProperty(Chat::, 'constructor', {value: Chat})
 	{
 		'ready'				: (callback) !->
@@ -315,6 +365,8 @@ function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer)
 		 */
 		'generate_secret'	: ->
 			random_bytes(ID_LENGTH)
+		'id_encode' : id_encode
+		'id_decode' : id_decode
 	}
 
 if typeof define == 'function' && define['amd']
