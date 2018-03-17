@@ -37,10 +37,12 @@
     return array;
   }
   function Wrapper(detoxCore, detoxCrypto, detoxUtils, asyncEventer){
-    var random_bytes, string2array, array2string, are_arrays_equal, concat_arrays, error_handler, ArraySet, base58_encode, base58_decode, sha3_256, APPLICATION;
+    var random_bytes, string2array, array2string, hex2array, array2hex, are_arrays_equal, concat_arrays, error_handler, ArraySet, base58_encode, base58_decode, sha3_256, APPLICATION;
     random_bytes = detoxUtils['random_bytes'];
     string2array = detoxUtils['string2array'];
     array2string = detoxUtils['array2string'];
+    hex2array = detoxUtils['hex2array'];
+    array2hex = detoxUtils['array2hex'];
     are_arrays_equal = detoxUtils['are_arrays_equal'];
     concat_arrays = detoxUtils['concat_arrays'];
     error_handler = detoxUtils['error_handler'];
@@ -351,14 +353,49 @@
      *
      * @return {!Uint8Array[]} [public_key, secret]
      *
-     * @throws {Error} When checksum is not correct
+     * @throws {Error} When checksum or ID is not correct
      */
     function id_decode(string){
       var payload, public_key, secret;
       payload = base58_check_decode(string);
+      if (payload.length < ID_LENGTH || payload.length > ID_LENGTH * 2) {
+        throw new Error('Incorrect ID');
+      }
       public_key = payload.subarray(0, ID_LENGTH);
       secret = payload.subarray(ID_LENGTH);
       return [public_key, secret];
+    }
+    /**
+     * Encodes ID, IP and port of bootstrap node into base58 string with built-in checksum
+     *
+     * @param {string} id
+     * @param {string} ip		IPv4
+     * @param {number} port
+     *
+     * @return {string}
+     */
+    function bootstrap_node_encode(id, ip, port){
+      return base58_check_encode(concat_arrays([hex2array(id), ip.split('.'), new Uint8Array(Uint16Array.of(port).buffer)]));
+    }
+    /**
+     * Decodes encoded ID, IP and port from base58 string and checks built-in checksum
+     *
+     * @param {string} string
+     *
+     * @return {!Array} [id, ip, port]
+     *
+     * @throws {Error} When checksum or bootstrap node information is not correct
+     */
+    function bootstrap_node_decode(string){
+      var payload, id, ip, port;
+      payload = base58_check_decode(string);
+      if (payload.length !== ID_LENGTH + 4 + 2) {
+        throw new Error('Incorrect bootstrap node information');
+      }
+      id = array2hex(payload.subarray(0, ID_LENGTH));
+      ip = payload.subarray(ID_LENGTH, ID_LENGTH + 4).join('.');
+      port = new Uint16Array(payload.slice(ID_LENGTH + 4).buffer)[0];
+      return [id, ip, port];
     }
     Object.defineProperty(Chat.prototype, 'constructor', {
       value: Chat
@@ -389,7 +426,9 @@
         return random_bytes(ID_LENGTH);
       },
       'id_encode': id_encode,
-      'id_decode': id_decode
+      'id_decode': id_decode,
+      'bootstrap_node_encode': bootstrap_node_encode,
+      'bootstrap_node_decode': bootstrap_node_decode
     };
   }
   if (typeof define === 'function' && define['amd']) {

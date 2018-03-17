@@ -39,6 +39,8 @@ function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer)
 	random_bytes		= detox-utils['random_bytes']
 	string2array		= detox-utils['string2array']
 	array2string		= detox-utils['array2string']
+	hex2array			= detox-utils['hex2array']
+	array2hex			= detox-utils['array2hex']
 	are_arrays_equal	= detox-utils['are_arrays_equal']
 	concat_arrays		= detox-utils['concat_arrays']
 	error_handler		= detox-utils['error_handler']
@@ -324,7 +326,9 @@ function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer)
 	 * @return {string}
 	 */
 	function id_encode (public_key, secret)
-		base58_check_encode(concat_arrays([public_key, secret]))
+		base58_check_encode(
+			concat_arrays([public_key, secret])
+		)
 	/**
 	 * Decodes encoded public key and secret from base58 string and checks built-in checksum
 	 *
@@ -332,37 +336,79 @@ function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer)
 	 *
 	 * @return {!Uint8Array[]} [public_key, secret]
 	 *
-	 * @throws {Error} When checksum is not correct
+	 * @throws {Error} When checksum or ID is not correct
 	 */
 	function id_decode (string)
 		payload		= base58_check_decode(string)
+		if payload.length < ID_LENGTH || payload.length > (ID_LENGTH * 2)
+			throw new Error('Incorrect ID')
 		public_key	= payload.subarray(0, ID_LENGTH)
 		secret		= payload.subarray(ID_LENGTH)
 		[public_key, secret]
+	/**
+	 * Encodes ID, IP and port of bootstrap node into base58 string with built-in checksum
+	 *
+	 * @param {string} id
+	 * @param {string} ip		IPv4
+	 * @param {number} port
+	 *
+	 * @return {string}
+	 */
+	function bootstrap_node_encode (id, ip, port)
+		base58_check_encode(
+			concat_arrays([
+				hex2array(id)
+				ip.split('.')
+				new Uint8Array(
+					Uint16Array.of(port).buffer
+				)
+			])
+		)
+	/**
+	 * Decodes encoded ID, IP and port from base58 string and checks built-in checksum
+	 *
+	 * @param {string} string
+	 *
+	 * @return {!Array} [id, ip, port]
+	 *
+	 * @throws {Error} When checksum or bootstrap node information is not correct
+	 */
+	function bootstrap_node_decode (string)
+		payload	= base58_check_decode(string)
+		if payload.length != (ID_LENGTH + 4 + 2) # ID + IP + port
+			throw new Error('Incorrect bootstrap node information')
+		id		= array2hex(payload.subarray(0, ID_LENGTH))
+		ip		= payload.subarray(ID_LENGTH, ID_LENGTH + 4).join('.')
+		port	= (
+			new Uint16Array(payload.slice(ID_LENGTH + 4).buffer)
+		)[0]
+		[id, ip, port]
 
 	Object.defineProperty(Chat::, 'constructor', {value: Chat})
 	{
-		'ready'				: (callback) !->
+		'ready'					: (callback) !->
 			<-! detox-core['ready']
 			<-! detox-crypto['ready']
 			callback()
-		'Chat'				: Chat
+		'Chat'					: Chat
 		/**
 		 * Generates random seed that can be used as keypair seed
 		 *
 		 * @return {!Uint8Array} 32 bytes
 		 */
-		'generate_seed'		: ->
+		'generate_seed'			: ->
 			random_bytes(ID_LENGTH)
 		/**
 		 * Generates random secret that can be used for friends connections
 		 *
 		 * @return {!Uint8Array} 32 bytes
 		 */
-		'generate_secret'	: ->
+		'generate_secret'		: ->
 			random_bytes(ID_LENGTH)
-		'id_encode' : id_encode
-		'id_decode' : id_decode
+		'id_encode'				: id_encode
+		'id_decode'				: id_decode
+		'bootstrap_node_encode' : bootstrap_node_encode
+		'bootstrap_node_decode' : bootstrap_node_decode
 	}
 
 if typeof define == 'function' && define['amd']

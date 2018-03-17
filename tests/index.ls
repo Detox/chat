@@ -23,9 +23,11 @@ const expected_public_key	= Buffer.from('09d174678b66eeebbd7f4fa4a427adc7c3aa172
 const expected_secret		= Buffer.from('0a3b582115fd9be7b581a3282b587a8b27d8087f30e602328253abcd552d3291', 'hex')
 const expected_id			= '4poWr1r1hnXUjo7ED7T1R2gU9wfeBxkAfX8fcnMYQe2QyXT9BC3wMKB1MqE6bNBHBCy6BqzZoMhdLaNjfNoQnVAnVC'
 
+const expected_bootstrap_node	= '3xE5t9mrdfwr9i1JwTYfSaov6NHX9aHu3ejdLpyhL2dMibGYYQ9E1p6'
+
 <-! lib.ready
 test('Core', (t) !->
-	t.plan(NUMBER_OF_NODES + 20)
+	t.plan(NUMBER_OF_NODES + 22)
 
 	generated_seed	= lib.generate_seed()
 	t.ok(generated_seed instanceof Uint8Array, 'Seed is Uint8Array')
@@ -37,6 +39,9 @@ test('Core', (t) !->
 
 	t.equal(lib.id_encode(expected_public_key, expected_secret), expected_id, 'Encoded ID correctly')
 	t.equal(detox-utils.concat_arrays(lib.id_decode(expected_id)).join(','), detox-utils.concat_arrays([expected_public_key, expected_secret]).join(','), 'Decoded ID correctly')
+
+	t.equal(lib.bootstrap_node_encode(bootstrap_node_id, bootstrap_ip, bootstrap_port), expected_bootstrap_node, 'Encoded bootstrap node correctly')
+	t.equal(lib.bootstrap_node_decode(expected_bootstrap_node).join(','), [bootstrap_node_id, bootstrap_ip, bootstrap_port].join(','), 'Decoded bootstrap node correctly')
 
 	node_1_real_seed		= new Uint8Array(32)
 		..set([1, 1])
