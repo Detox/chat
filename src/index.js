@@ -351,7 +351,7 @@
      *
      * @param {string} string
      *
-     * @return {!Uint8Array[]} [public_key, secret]
+     * @return {!Array<!Uint8Array>} [public_key, secret]
      *
      * @throws {Error} When checksum or ID is not correct
      */
