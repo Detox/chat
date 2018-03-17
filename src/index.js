@@ -365,16 +365,11 @@
     });
     return {
       'ready': function(callback){
-        var wait_for;
-        wait_for = 2;
-        function ready(){
-          --wait_for;
-          if (!wait_for) {
+        detoxCore['ready'](function(){
+          detoxCrypto['ready'](function(){
             callback();
-          }
-        }
-        detoxCore['ready'](ready);
-        detoxCrypto['ready'](ready);
+          });
+        });
       },
       'Chat': Chat
       /**

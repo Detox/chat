@@ -343,13 +343,9 @@ function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer)
 	Object.defineProperty(Chat::, 'constructor', {value: Chat})
 	{
 		'ready'				: (callback) !->
-			wait_for	= 2
-			!function ready
-				--wait_for
-				if !wait_for
-					callback()
-			detox-core['ready'](ready)
-			detox-crypto['ready'](ready)
+			<-! detox-core['ready']
+			<-! detox-crypto['ready']
+			callback()
 		'Chat'				: Chat
 		/**
 		 * Generates random seed that can be used as keypair seed
