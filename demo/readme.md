@@ -1,5 +1,11 @@
 # Detox chat demo
+Terminal 1:
+```bash
+npm run demo-bootstrap-node
+```
+Terminal 2:
+```bash
+npm run demo-http-server
+```
 
-1. `node demo/server.js`
-2. Configure WebServer to point to the root of the repo
-3. Go to `domain.ltd/demo/index.html`
+Go to `http://127.0.0.1:8081/demo`

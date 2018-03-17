@@ -21,7 +21,9 @@
 		"src"
 	],
 	"scripts"         : {
-		"test" : "tape tests/**/*.js"
+		"demo-bootstrap-node" : "node demo/server",
+		"demo-http-server"    : "http-server",
+		"test"                : "tape tests/**/*.js"
 	},
 	"dependencies"    : {
 		"@detox/core"   : "^0.5.1",
@@ -30,8 +32,9 @@
 		"async-eventer" : "^1.1.5"
 	},
 	"devDependencies" : {
-		"alameda"  : "^1.2.1",
-		"build-gc" : "^0.1.1",
-		"tape"     : "^4.9.0"
+		"alameda"     : "^1.2.1",
+		"build-gc"    : "^0.1.1",
+		"http-server" : "^0.11.1",
+		"tape"        : "^4.9.0"
 	}
 }
