@@ -346,43 +346,43 @@ function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer)
 		secret		= payload.subarray(ID_LENGTH)
 		[public_key, secret]
 	/**
-	 * Encodes ID, IP and port of bootstrap node into base58 string with built-in checksum
+	 * Encodes ID, host and port of bootstrap node into base58 string with built-in checksum
 	 *
 	 * @param {string} id
-	 * @param {string} ip		IPv4
+	 * @param {string} host
 	 * @param {number} port
 	 *
 	 * @return {string}
 	 */
-	function bootstrap_node_encode (id, ip, port)
+	function bootstrap_node_encode (id, host, port)
 		base58_check_encode(
 			concat_arrays([
 				hex2array(id)
-				ip.split('.')
+				string2array(host)
 				new Uint8Array(
 					Uint16Array.of(port).buffer
 				)
 			])
 		)
 	/**
-	 * Decodes encoded ID, IP and port from base58 string and checks built-in checksum
+	 * Decodes encoded ID, host and port from base58 string and checks built-in checksum
 	 *
 	 * @param {string} string
 	 *
-	 * @return {!Array} [id, ip, port]
+	 * @return {!Array} [id, host, port]
 	 *
 	 * @throws {Error} When checksum or bootstrap node information is not correct
 	 */
 	function bootstrap_node_decode (string)
 		payload	= base58_check_decode(string)
-		if payload.length != (ID_LENGTH + 4 + 2) # ID + IP + port
+		if payload.length < (ID_LENGTH + 1 + 2) # ID + host + port
 			throw new Error('Incorrect bootstrap node information')
 		id		= array2hex(payload.subarray(0, ID_LENGTH))
-		ip		= payload.subarray(ID_LENGTH, ID_LENGTH + 4).join('.')
+		host	= array2string(payload.subarray(ID_LENGTH, -2))
 		port	= (
-			new Uint16Array(payload.slice(ID_LENGTH + 4).buffer)
+			new Uint16Array(payload.slice(-2).buffer)
 		)[0]
-		[id, ip, port]
+		[id, host, port]
 
 	Object.defineProperty(Chat::, 'constructor', {value: Chat})
 	{
