@@ -116,7 +116,7 @@
         }
         return this$['fire']('introduction', data['target_id'], data['secret'], data['application']).then(function(){
           data['number_of_intermediate_nodes'] = Math.max(this$._number_of_intermediate_nodes - 1, 1);
-        })['catch'](error_handler);
+        });
       })['on']('data', function(real_public_key, friend_id, received_command, received_data){
         var date_sent_array, date_sent, date_written_array, date_written, text_array;
         if (this$._destroyed || !this$._is_current_chat(real_public_key)) {

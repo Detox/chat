@@ -115,10 +115,8 @@ function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer)
 					are_arrays_equal(APPLICATION, data['application'].subarray(0, APPLICATION.length))
 				)
 					return
-				@'fire'('introduction', data['target_id'], data['secret'], data['application'])
-					.then !~>
-						data['number_of_intermediate_nodes']	= Math.max(@_number_of_intermediate_nodes - 1, 1)
-					.catch(error_handler)
+				@'fire'('introduction', data['target_id'], data['secret'], data['application']).then !~>
+					data['number_of_intermediate_nodes']	= Math.max(@_number_of_intermediate_nodes - 1, 1)
 			)
 			.'on'('data', (real_public_key, friend_id, received_command, received_data) !~>
 				if @_destroyed || !@_is_current_chat(real_public_key)
