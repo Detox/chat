@@ -18,8 +18,9 @@
       '@detox/utils': '@detox/utils/src/index',
       'async-eventer': 'async-eventer/src/index',
       'fixed-size-multiplexer': 'fixed-size-multiplexer/src/index',
+      'pako': 'pako/dist/pako',
       'ronion': 'ronion/dist/ronion.browser',
-      'pako': 'pako/dist/pako'
+      'simple-peer': 'simple-peer/simplepeer.min'
     },
     packages: [
       {
