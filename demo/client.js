@@ -19,7 +19,7 @@
       'async-eventer': 'async-eventer/src/index',
       'fixed-size-multiplexer': 'fixed-size-multiplexer/src/index',
       'pako': 'pako/dist/pako',
-      'ronion': 'ronion/dist/ronion.browser',
+      'ronion': 'ronion/src/index',
       'simple-peer': 'simple-peer/simplepeer.min'
     },
     packages: [
