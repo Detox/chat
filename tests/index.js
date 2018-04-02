@@ -11,7 +11,7 @@
   detoxUtils = require('@detox/utils');
   lib = require('..');
   test = require('tape');
-  NUMBER_OF_NODES = 10;
+  NUMBER_OF_NODES = 18;
   bootstrap_node_id = '3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29';
   bootstrap_ip = '127.0.0.1';
   bootstrap_port = 16882;
@@ -63,8 +63,8 @@
         var node_1, node_3, chat_node_1, chat_node_3;
         node_1 = nodes[1];
         node_3 = nodes[3];
-        chat_node_1 = lib.Chat(node_1, node_1_real_seed);
-        chat_node_3 = lib.Chat(node_3, node_3_real_seed);
+        chat_node_1 = lib.Chat(node_1, node_1_real_seed, 2, 1);
+        chat_node_3 = lib.Chat(node_3, node_3_real_seed, 2, 1);
         t.deepEqual(node_1.get_bootstrap_nodes()[0], bootstrap_node_info, 'Bootstrap nodes are returned correctly');
         t.equal(node_1.get_max_data_size(), Math.pow(2, 16) - 1, 'Max data size returned correctly');
         chat_node_1.once('announced', function(){
@@ -124,7 +124,7 @@
         x$ = dht_seed = new Uint8Array(32);
         x$.set([i]);
         if (i === 0) {
-          instance = detoxCore.Core(dht_seed, [], [], 5, 10);
+          instance = detoxCore.Core(dht_seed, [], [], 5, 5);
           instance.start_bootstrap_node(bootstrap_ip, bootstrap_port);
         } else {
           instance = detoxCore.Core(dht_seed, [bootstrap_node_info], [], 5);
