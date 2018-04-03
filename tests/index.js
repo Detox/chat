@@ -63,8 +63,8 @@
         var node_1, node_3, chat_node_1, chat_node_3;
         node_1 = nodes[1];
         node_3 = nodes[3];
-        chat_node_1 = lib.Chat(node_1, node_1_real_seed, 3, 1);
-        chat_node_3 = lib.Chat(node_3, node_3_real_seed, 3, 1);
+        chat_node_1 = lib.Chat(node_1, node_1_real_seed, 1, 1);
+        chat_node_3 = lib.Chat(node_3, node_3_real_seed, 1, 1);
         t.deepEqual(node_1.get_bootstrap_nodes()[0], bootstrap_node_info, 'Bootstrap nodes are returned correctly');
         t.equal(node_1.get_max_data_size(), Math.pow(2, 16) - 1, 'Max data size returned correctly');
         chat_node_1.once('announced', function(){
