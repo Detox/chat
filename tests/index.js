@@ -11,7 +11,7 @@
   detoxUtils = require('@detox/utils');
   lib = require('..');
   test = require('tape');
-  NUMBER_OF_NODES = 30;
+  NUMBER_OF_NODES = 15;
   bootstrap_node_id = '3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29';
   bootstrap_ip = '127.0.0.1';
   bootstrap_port = 16882;
