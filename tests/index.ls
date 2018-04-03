@@ -27,7 +27,7 @@ const expected_bootstrap_node	= '2UGPcWBEr2RQonHUscd21CkFtaoJ18xJdEuWFAhDyZMY2Rz
 
 <-! lib.ready
 test('Core', (t) !->
-	t.plan(NUMBER_OF_NODES + 22)
+	t.plan(NUMBER_OF_NODES + 20)
 
 	generated_seed	= lib.generate_seed()
 	t.ok(generated_seed instanceof Uint8Array, 'Seed is Uint8Array')
@@ -82,10 +82,6 @@ test('Core', (t) !->
 
 		chat_node_1	= lib.Chat(node_1, node_1_real_seed, 1, 1)
 		chat_node_3	= lib.Chat(node_3, node_3_real_seed, 1, 1)
-
-		t.deepEqual(node_1.get_bootstrap_nodes()[0], bootstrap_node_info, 'Bootstrap nodes are returned correctly')
-
-		t.equal(node_1.get_max_data_size(), 2 ** 16 - 1, 'Max data size returned correctly')
 
 		chat_node_1.once('announced', !->
 			t.pass('Node 1 announced successfully')

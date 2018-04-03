@@ -28,7 +28,7 @@
   lib.ready(function(){
     test('Core', function(t){
       var generated_seed, generated_secret, x$, node_1_real_seed, node_1_real_public_key, y$, node_3_real_seed, node_3_real_public_key, nodes, wait_for, i$, to$;
-      t.plan(NUMBER_OF_NODES + 22);
+      t.plan(NUMBER_OF_NODES + 20);
       generated_seed = lib.generate_seed();
       t.ok(generated_seed instanceof Uint8Array, 'Seed is Uint8Array');
       t.equal(generated_seed.length, 32, 'Seed length is 32 bytes');
@@ -65,8 +65,6 @@
         node_3 = nodes[3];
         chat_node_1 = lib.Chat(node_1, node_1_real_seed, 1, 1);
         chat_node_3 = lib.Chat(node_3, node_3_real_seed, 1, 1);
-        t.deepEqual(node_1.get_bootstrap_nodes()[0], bootstrap_node_info, 'Bootstrap nodes are returned correctly');
-        t.equal(node_1.get_max_data_size(), Math.pow(2, 16) - 1, 'Max data size returned correctly');
         chat_node_1.once('announced', function(){
           t.pass('Node 1 announced successfully');
           console.log('Preparing for connection (5s)...');
