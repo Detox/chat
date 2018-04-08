@@ -1,7 +1,7 @@
 # Detox chat [![Travis CI](https://img.shields.io/travis/Detox/chat/master.svg?label=Travis%20CI)](https://travis-ci.org/Detox/chat)
 Chat library of Detox project that provides high-level APIs used when building chat application on top of Detox network.
 
-This repository contains high level design overview (design.md, not written yet), specification for implementors (spec.md, not written yet) and reference implementation.
+This repository contains high level design overview (design.md), specification for implementors (spec.md, not written yet) and reference implementation.
 
 Library builds on top of `@detox/core` and provides simple to use API for interacting with other chat applications on Detox network.
 
