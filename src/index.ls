@@ -3,13 +3,16 @@
  * @author  Nazar Mokrynskyi <nazar@mokrynskyi.com>
  * @license 0BSD
  */
+/*
+ * Implements version 0.1.0 of the specification
+ */
 const COMMAND_DIRECT_CONNECTION_SDP	= 0
 const COMMAND_SECRET				= 1
 const COMMAND_SECRET_RECEIVED		= 2
 const COMMAND_NICKNAME				= 3
 const COMMAND_TEXT_MESSAGE			= 4
 const COMMAND_TEXT_MESSAGE_RECEIVED	= 5
-const CUSTOM_COMMANDS_OFFSET		= 32 # 5..31 are also reserved for future use, everything above is available for the user
+const CUSTOM_COMMANDS_OFFSET		= 64 # 6..63 are also reserved for future use, everything above is available for the user
 
 # TODO: Separate set of commands for direct connections (chat, file transfers, calls, etc.)
 
