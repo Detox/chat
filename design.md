@@ -1,6 +1,6 @@
 # Detox Chat protocol design
 
-Complements specification version: 0.1.0
+Complements specification version: 0.2.0
 
 Author: Nazar Mokrynskyi
 

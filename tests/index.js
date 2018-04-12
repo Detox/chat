@@ -23,8 +23,8 @@
   plaintext = 'Hello, Detox chat!';
   expected_public_key = Buffer.from('09d174678b66eeebbd7f4fa4a427adc7c3aa172703b8c4844344f168f0e2c6eb', 'hex');
   expected_secret = Buffer.from('0a3b582115fd9be7b581a3282b587a8b27d8087f30e602328253abcd552d3291', 'hex');
-  expected_id = '4poWr1r1hnXUjo7ED7T1R2gU9wfeBxkAfX8fcnMYQe2QyXT9BC3wMKB1MqE6bNBHBCy6BqzZoMhdLaNjfNoQnVAnVC';
-  expected_bootstrap_node = '2UGPcWBEr2RQonHUscd21CkFtaoJ18xJdEuWFAhDyZMY2RzE7bzcbvR6gQhDkc';
+  expected_id = '4poWr1r1hnXUjo7ED7T1R2gU9wfeBxkAfX8fcnMYQe2QyXT9BC3wMKB1MqE6bNBHBCy6BqzZoMhdLaNjfNoQnVAkSA';
+  expected_bootstrap_node = '2UGPcWBEr2RQonHUscd21CkFtaoJ18xJdEuWFAhDyZMY2RzE7bzcbvR6gQhHH4';
   lib.ready(function(){
     test('Core', function(t){
       var generated_seed, generated_secret, x$, node_1_real_seed, node_1_real_public_key, y$, node_3_real_seed, node_3_real_public_key, nodes, wait_for, i$, to$;

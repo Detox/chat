@@ -6,7 +6,7 @@
  */
 (function(){
   /*
-   * Implements version 0.1.0 of the specification
+   * Implements version 0.2.0 of the specification
    */
   var COMMAND_DIRECT_CONNECTION_SDP, COMMAND_SECRET, COMMAND_SECRET_RECEIVED, COMMAND_NICKNAME, COMMAND_TEXT_MESSAGE, COMMAND_TEXT_MESSAGE_RECEIVED, CUSTOM_COMMANDS_OFFSET, ID_LENGTH;
   COMMAND_DIRECT_CONNECTION_SDP = 0;
@@ -40,7 +40,7 @@
     return array;
   }
   function Wrapper(detoxCore, detoxCrypto, detoxUtils, asyncEventer){
-    var random_bytes, string2array, array2string, hex2array, array2hex, are_arrays_equal, concat_arrays, error_handler, ArraySet, base58_encode, base58_decode, sha3_256, APPLICATION;
+    var random_bytes, string2array, array2string, hex2array, array2hex, are_arrays_equal, concat_arrays, error_handler, ArraySet, base58_encode, base58_decode, blake2b_256, APPLICATION;
     random_bytes = detoxUtils['random_bytes'];
     string2array = detoxUtils['string2array'];
     array2string = detoxUtils['array2string'];
@@ -52,7 +52,7 @@
     ArraySet = detoxUtils['ArraySet'];
     base58_encode = detoxUtils['base58_encode'];
     base58_decode = detoxUtils['base58_decode'];
-    sha3_256 = detoxCrypto['sha3_256'];
+    blake2b_256 = detoxCrypto['blake2b_256'];
     APPLICATION = string2array('detox-chat-v0');
     /**
      * @constructor
@@ -318,7 +318,7 @@
      */
     function base58_check_encode(payload){
       var checksum;
-      checksum = detoxCrypto['sha3_256'](payload).subarray(0, 2);
+      checksum = blake2b_256(payload).subarray(0, 2);
       return base58_encode(concat_arrays([payload, checksum]));
     }
     /**
@@ -333,7 +333,7 @@
       decoded_array = base58_decode(string);
       payload = decoded_array.subarray(0, -2);
       checksum = decoded_array.subarray(-2);
-      if (!are_arrays_equal(sha3_256(payload).subarray(0, 2), checksum)) {
+      if (!are_arrays_equal(blake2b_256(payload).subarray(0, 2), checksum)) {
         throw new Error('Checksum is not correct');
       }
       return payload;

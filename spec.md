@@ -1,6 +1,6 @@
 # Detox Chat protocol specification
 
-Specification version: 0.1.0
+Specification version: 0.2.0
 
 Author: Nazar Mokrynskyi
 
@@ -55,7 +55,7 @@ Such secrets are only used during contacts requests, all future connections use 
 For convenience of distribution of such IDs in text form, following encoding procedure is used:
 * take 32-byte Ed25519 long term public key of a node
 * optionally append a secret up to 32-bytes long
-* compute SHA3-256 hash of above, take first 2 bytes from that hash and append to above
+* compute Blake2b-256 hash of above, take first 2 bytes from that hash and append to above
 * base58-encode all of the above using dictionary `123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz` (as used in Bitcoin and some other projects)
 
 Upon decoding, hash is recomputed and last 2 bytes are compared in order to make sure, ID was not misprinted.

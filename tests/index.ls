@@ -21,9 +21,9 @@ const plaintext				= 'Hello, Detox chat!'
 
 const expected_public_key	= Buffer.from('09d174678b66eeebbd7f4fa4a427adc7c3aa172703b8c4844344f168f0e2c6eb', 'hex')
 const expected_secret		= Buffer.from('0a3b582115fd9be7b581a3282b587a8b27d8087f30e602328253abcd552d3291', 'hex')
-const expected_id			= '4poWr1r1hnXUjo7ED7T1R2gU9wfeBxkAfX8fcnMYQe2QyXT9BC3wMKB1MqE6bNBHBCy6BqzZoMhdLaNjfNoQnVAnVC'
+const expected_id			= '4poWr1r1hnXUjo7ED7T1R2gU9wfeBxkAfX8fcnMYQe2QyXT9BC3wMKB1MqE6bNBHBCy6BqzZoMhdLaNjfNoQnVAkSA'
 
-const expected_bootstrap_node	= '2UGPcWBEr2RQonHUscd21CkFtaoJ18xJdEuWFAhDyZMY2RzE7bzcbvR6gQhDkc'
+const expected_bootstrap_node	= '2UGPcWBEr2RQonHUscd21CkFtaoJ18xJdEuWFAhDyZMY2RzE7bzcbvR6gQhHH4'
 
 <-! lib.ready
 test('Core', (t) !->

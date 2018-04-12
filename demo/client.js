@@ -14,18 +14,22 @@
       '@detox/core': '@detox/core/src/index',
       '@detox/crypto': '@detox/crypto/src/index',
       '@detox/dht': '@detox/dht/dist/detox-dht.browser',
+      '@detox/simple-peer': '@detox/simple-peer/simplepeer.min',
       '@detox/transport': '@detox/transport/src/index',
       '@detox/utils': '@detox/utils/src/index',
       'async-eventer': 'async-eventer/src/index',
       'fixed-size-multiplexer': 'fixed-size-multiplexer/src/index',
       'pako': 'pako/dist/pako',
-      'ronion': 'ronion/src/index',
-      'simple-peer': 'simple-peer/simplepeer.min'
+      'ronion': 'ronion/src/index'
     },
     packages: [
       {
         name: 'aez.wasm',
         location: 'aez.wasm',
+        main: 'src/index'
+      }, {
+        name: 'blake2.wasm',
+        location: 'blake2.wasm',
         main: 'src/index'
       }, {
         name: 'ed25519-to-x25519.wasm',

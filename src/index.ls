@@ -4,7 +4,7 @@
  * @license 0BSD
  */
 /*
- * Implements version 0.1.0 of the specification
+ * Implements version 0.2.0 of the specification
  */
 const COMMAND_DIRECT_CONNECTION_SDP	= 0
 const COMMAND_SECRET				= 1
@@ -50,7 +50,7 @@ function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer)
 	ArraySet			= detox-utils['ArraySet']
 	base58_encode		= detox-utils['base58_encode']
 	base58_decode		= detox-utils['base58_decode']
-	sha3_256			= detox-crypto['sha3_256']
+	blake2b_256			= detox-crypto['blake2b_256']
 
 	const APPLICATION	= string2array('detox-chat-v0')
 	/**
@@ -302,7 +302,7 @@ function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer)
 	 * @return {string}
 	 */
 	function base58_check_encode (payload)
-		checksum	= detox-crypto['sha3_256'](payload).subarray(0, 2)
+		checksum	= blake2b_256(payload).subarray(0, 2)
 		base58_encode(concat_arrays([payload, checksum]))
 	/**
 	 * @param {string} string
@@ -315,7 +315,7 @@ function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer)
 		decoded_array	= base58_decode(string)
 		payload			= decoded_array.subarray(0, -2)
 		checksum		= decoded_array.subarray(-2)
-		if !are_arrays_equal(sha3_256(payload).subarray(0, 2), checksum)
+		if !are_arrays_equal(blake2b_256(payload).subarray(0, 2), checksum)
 			throw new Error('Checksum is not correct')
 		payload
 	/**
