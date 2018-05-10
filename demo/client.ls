@@ -15,9 +15,11 @@ requirejs.config(
 		'@detox/simple-peer'		: '@detox/simple-peer/simplepeer.min'
 		'@detox/transport'			: '@detox/transport/src/index'
 		'@detox/utils'				: '@detox/utils/src/index'
+		'array-map-set'				: 'node_modules/array-map-set/src/index'
 		'async-eventer'				: 'async-eventer/src/index'
 		'fixed-size-multiplexer'	: 'fixed-size-multiplexer/src/index'
 		'pako'						: 'pako/dist/pako'
+		'random-bytes-numbers'		: 'node_modules/random-bytes-numbers/src/index'
 		'ronion'					: 'ronion/src/index'
 	packages	: [
 		{
