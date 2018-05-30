@@ -250,7 +250,7 @@ function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer)
 			date_sent	= +(new Date)
 			if date_sent <= @_last_date_sent
 				date_sent	= @_last_date_sent + 1
-			data	= concat_arrays([date_to_array(date_sent), date_to_array(date_written), text])
+			data	= concat_arrays(date_to_array(date_sent), date_to_array(date_written), text)
 			if data.length > @_max_data_size
 				return 0
 			@_last_date_sent	= date_sent
@@ -303,7 +303,7 @@ function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer)
 	 */
 	function base58_check_encode (payload)
 		checksum	= blake2b_256(payload).subarray(0, 2)
-		base58_encode(concat_arrays([payload, checksum]))
+		base58_encode(concat_arrays(payload, checksum))
 	/**
 	 * @param {string} string
 	 *
@@ -328,7 +328,7 @@ function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer)
 	 */
 	function id_encode (public_key, secret)
 		base58_check_encode(
-			concat_arrays([public_key, secret])
+			concat_arrays(public_key, secret)
 		)
 	/**
 	 * Decodes encoded public key and secret from base58 string and checks built-in checksum

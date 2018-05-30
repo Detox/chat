@@ -258,7 +258,7 @@
         if (date_sent <= this._last_date_sent) {
           date_sent = this._last_date_sent + 1;
         }
-        data = concat_arrays([date_to_array(date_sent), date_to_array(date_written), text]);
+        data = concat_arrays(date_to_array(date_sent), date_to_array(date_written), text);
         if (data.length > this._max_data_size) {
           return 0;
         }
@@ -319,7 +319,7 @@
     function base58_check_encode(payload){
       var checksum;
       checksum = blake2b_256(payload).subarray(0, 2);
-      return base58_encode(concat_arrays([payload, checksum]));
+      return base58_encode(concat_arrays(payload, checksum));
     }
     /**
      * @param {string} string
@@ -347,7 +347,7 @@
      * @return {string}
      */
     function id_encode(public_key, secret){
-      return base58_check_encode(concat_arrays([public_key, secret]));
+      return base58_check_encode(concat_arrays(public_key, secret));
     }
     /**
      * Decodes encoded public key and secret from base58 string and checks built-in checksum
