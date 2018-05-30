@@ -107,7 +107,7 @@
                 console.log('Connection failed with code ' + reason + ', retry in 5s...');
                 setTimeout(function(){
                   console.log('Connecting...');
-                  node_3.connect_to(node_3_real_seed, node_1_real_public_key, application, node_1_secret, 1);
+                  chat_node_3.connect_to(node_1_real_public_key, generated_secret);
                 }, 5000);
                 return;
               }
