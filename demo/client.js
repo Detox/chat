@@ -13,15 +13,19 @@
       '@detox/chat': '/src/index',
       '@detox/core': '@detox/core/src/index',
       '@detox/crypto': '@detox/crypto/src/index',
-      '@detox/dht': '@detox/dht/dist/detox-dht.browser',
+      '@detox/dht': '@detox/dht/src/index',
+      '@detox/routing': '@detox/routing/src/index',
       '@detox/simple-peer': '@detox/simple-peer/simplepeer.min',
       '@detox/transport': '@detox/transport/src/index',
       '@detox/utils': '@detox/utils/src/index',
-      'array-map-set': 'node_modules/array-map-set/src/index',
+      'array-map-set': 'array-map-set/src/index',
       'async-eventer': 'async-eventer/src/index',
+      'es-dht': 'es-dht/src/index',
       'fixed-size-multiplexer': 'fixed-size-multiplexer/src/index',
+      'k-bucket-sync': 'k-bucket-sync/src/index',
+      'merkle-tree-binary': 'merkle-tree-binary/src/index',
       'pako': 'pako/dist/pako',
-      'random-bytes-numbers': 'node_modules/random-bytes-numbers/src/index',
+      'random-bytes-numbers': 'random-bytes-numbers/src/index',
       'ronion': 'ronion/src/index'
     },
     packages: [
@@ -52,18 +56,21 @@
   bootstrap_node_id = '3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29';
   bootstrap_ip = '127.0.0.1';
   bootstrap_port = 16882;
-  bootstrap_node_info = {
-    node_id: bootstrap_node_id,
-    host: bootstrap_ip,
-    port: bootstrap_port
-  };
+  bootstrap_node_info = bootstrap_node_id + ":" + bootstrap_ip + ":" + bootstrap_port;
   require(['@detox/chat', '@detox/core', '@detox/crypto', '@detox/utils']).then(function(arg$){
     var detoxChat, detoxCore, detoxCrypto, detoxUtils;
     detoxChat = arg$[0], detoxCore = arg$[1], detoxCrypto = arg$[2], detoxUtils = arg$[3];
     detoxChat.ready(function(){
-      var wait_for, i$, to$;
+      var wait_for, options, i$, to$;
       window.nodes = [];
       wait_for = NUMBER_OF_NODES;
+      options = {
+        timeouts: {
+          LAST_USED_TIMEOUT: 15
+        },
+        connected_nodes_limit: 30,
+        lookup_number: 3
+      };
       function log(message){
         console.log(message);
         document.querySelector('#status').textContent = message;
@@ -80,8 +87,8 @@
         chat_seed_1 = detoxUtils.random_bytes(32);
         chat_keypair_0 = detoxCrypto.create_keypair(chat_seed_0);
         chat_keypair_1 = detoxCrypto.create_keypair(chat_seed_1);
-        chat_instance_0 = detoxChat.Chat(core_instance_0, chat_seed_0);
-        chat_instance_1 = detoxChat.Chat(core_instance_1, chat_seed_1);
+        chat_instance_0 = detoxChat.Chat(core_instance_0, chat_seed_0, 3, 1);
+        chat_instance_1 = detoxChat.Chat(core_instance_1, chat_seed_1, 3, 1);
         window.chat_nodes = [chat_instance_0, chat_instance_1];
         window.chat_opponents = [chat_keypair_1.ed25519['public'], chat_keypair_0.ed25519['public']];
         detoxUtils.timeoutSet(2, function(){
@@ -127,11 +134,11 @@
             chat_opponent = chat_opponents[index];
             chat_element.querySelector('button').addEventListener('click', function(){
               var x$;
-              chat_node.text_message(chat_opponent, textarea.value);
+              chat_node.text_message(chat_opponent, new Date, textarea.value);
               messages.prepend((x$ = document.createElement('div'), x$.textContent = textarea.value, x$.classList.add('right'), x$));
               textarea.value = '';
             });
-            chat_node.on('text_message', function(arg$, arg1$, message){
+            chat_node.on('text_message', function(arg$, arg1$, arg2$, message){
               var x$;
               messages.prepend((x$ = document.createElement('div'), x$.textContent = message, x$));
             });
@@ -140,7 +147,7 @@
       }
       function fn$(i){
         var instance;
-        instance = detoxCore.Core(detoxChat.generate_seed(), [bootstrap_node_info], [], 5);
+        instance = detoxCore.Core([bootstrap_node_info], [], 10, 2, options);
         instance.once('ready', function(){
           log('Node ' + i + ' is ready, #' + (NUMBER_OF_NODES - wait_for + 1) + '/' + NUMBER_OF_NODES);
           --wait_for;

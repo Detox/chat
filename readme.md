@@ -48,12 +48,6 @@ Encodes public key and secret into base58 string with built-in checksum.
 ### detox_chat.id_decode(string : string) : Uint8Array[]
 Decodes encoded public key and secret from base58 string and checks built-in checksum.
 
-### detox_chat.bootstrap_node_encode(id : string, host : string, port : number) : string
-Encodes ID, host and port of bootstrap node into base58 string with built-in checksum.
-
-### detox_chat.bootstrap_node_decode(string : string) : Array
-Decodes encoded ID, host and port from base58 string and checks built-in checksum.
-
 ### detox_chat.Chat(core_instance : Object, real_key_seed = null : Uint8Array, number_of_introduction_nodes = 3 : number, number_of_intermediate_nodes = 3 : number) : detox_chat.Chat
 Constructor for Chat object, uses Detox core instance for connection to the network.
 

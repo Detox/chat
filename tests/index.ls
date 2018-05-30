@@ -3,20 +3,19 @@
  * @author  Nazar Mokrynskyi <nazar@mokrynskyi.com>
  * @license 0BSD
  */
+require('@detox/simple-peer-mock').register()
+
 detox-core		= require('@detox/core')
 detox-crypto	= require('@detox/crypto')
 detox-utils		= require('@detox/utils')
 lib				= require('..')
 test			= require('tape')
 
-const NUMBER_OF_NODES		= 15
+const NUMBER_OF_NODES		= 50
 const bootstrap_node_id		= '3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29'
 const bootstrap_ip			= '127.0.0.1'
 const bootstrap_port		= 16882
-const bootstrap_node_info	=
-	node_id	: bootstrap_node_id
-	host	: bootstrap_ip
-	port	: bootstrap_port
+const bootstrap_node_info	= "#bootstrap_node_id:#bootstrap_ip:#bootstrap_port"
 const plaintext				= 'Hello, Detox chat!'
 
 const expected_public_key	= Buffer.from('09d174678b66eeebbd7f4fa4a427adc7c3aa172703b8c4844344f168f0e2c6eb', 'hex')
@@ -27,8 +26,6 @@ const expected_bootstrap_node	= '2UGPcWBEr2RQonHUscd21CkFtaoJ18xJdEuWFAhDyZMY2Rz
 
 <-! lib.ready
 test('Core', (t) !->
-	t.plan(NUMBER_OF_NODES + 20)
-
 	generated_seed	= lib.generate_seed()
 	t.ok(generated_seed instanceof Uint8Array, 'Seed is Uint8Array')
 	t.equal(generated_seed.length, 32, 'Seed length is 32 bytes')
@@ -40,9 +37,6 @@ test('Core', (t) !->
 	t.equal(lib.id_encode(expected_public_key, expected_secret), expected_id, 'Encoded ID correctly')
 	t.equal(detox-utils.concat_arrays(lib.id_decode(expected_id)).join(','), detox-utils.concat_arrays([expected_public_key, expected_secret]).join(','), 'Decoded ID correctly')
 
-	t.equal(lib.bootstrap_node_encode(bootstrap_node_id, bootstrap_ip, bootstrap_port), expected_bootstrap_node, 'Encoded bootstrap node correctly')
-	t.equal(lib.bootstrap_node_decode(expected_bootstrap_node).join(','), [bootstrap_node_id, bootstrap_ip, bootstrap_port].join(','), 'Decoded bootstrap node correctly')
-
 	node_1_real_seed		= new Uint8Array(32)
 		..set([1, 1])
 	node_1_real_public_key	= detox-crypto.create_keypair(node_1_real_seed).ed25519.public
@@ -53,32 +47,49 @@ test('Core', (t) !->
 	nodes	= []
 
 	wait_for	= NUMBER_OF_NODES
+	options		=
+		timeouts				:
+			STATE_UPDATE_INTERVAL				: 2
+			GET_MORE_AWARE_OF_NODES_INTERVAL	: 2
+			ROUTING_PATH_SEGMENT_TIMEOUT		: 30
+			LAST_USED_TIMEOUT					: 15
+			ANNOUNCE_INTERVAL					: 5
+			RANDOM_LOOKUPS_INTERVAL				: 100
+		connected_nodes_limit	: 30
+		lookup_number			: 3
+	promise		= Promise.resolve()
 	for let i from 0 til NUMBER_OF_NODES
-		dht_seed	= new Uint8Array(32)
-			..set([i])
-		if i == 0
-			instance	= detox-core.Core(dht_seed, [], [], 5, 1) # K=1 is not realistic, but we can't run large enough network within the same process for testing purposes:(
-			instance.start_bootstrap_node(bootstrap_ip, bootstrap_port)
-		else
-			instance	= detox-core.Core(dht_seed, [bootstrap_node_info], [], 5, 1) # K=1 is not realistic, but we can't run large enough network within the same process for testing purposes:(
-		instance.once('ready', !->
-			t.pass('Node ' + i + ' is ready, #' + (NUMBER_OF_NODES - wait_for + 1) + '/' + NUMBER_OF_NODES)
+		promise		:= promise.then ->
+			new Promise (resolve) !->
+				dht_seed	= new Uint8Array(32)
+					..set([i])
+				if i == 0
+					instance	= detox-core.Core([], [], 5, 1, Object.assign({}, options, {dht_keypair_seed : dht_seed, connected_nodes_limit : NUMBER_OF_NODES}))
+					instance.start_bootstrap_node(dht_seed, bootstrap_ip, bootstrap_port)
+				else
+					instance	= detox-core.Core([bootstrap_node_info], [], 5, 1, Object.assign({dht_keypair_seed : dht_seed}, options))
+				instance.once('ready', !->
+					t.pass('Node ' + i + ' is ready, #' + (NUMBER_OF_NODES - wait_for + 1) + '/' + NUMBER_OF_NODES)
 
-			--wait_for
-			if !wait_for
-				ready_callback()
-		)
-		nodes.push(instance)
+					--wait_for
+					if !wait_for
+						ready_callback()
+				)
+				nodes.push(instance)
+				setTimeout(resolve, 100)
 
 	!function destroy_nodes
 		console.log 'Destroying nodes...'
 		for node in nodes
 			node.destroy()
 		console.log 'Destroyed'
+		t.end()
 
 	!function ready_callback
-		node_1	= nodes[1]
-		node_3	= nodes[3]
+		announcement_retry	= 3
+		connection_retry	= 5
+		node_1				= nodes[1]
+		node_3				= nodes[3]
 
 		chat_node_1	= lib.Chat(node_1, node_1_real_seed, 1, 1)
 		chat_node_3	= lib.Chat(node_3, node_3_real_seed, 1, 1)
@@ -124,6 +135,14 @@ test('Core', (t) !->
 						chat_node_3.secret(node_1_real_public_key, generated_secret)
 					)
 					.on('connection_failed', (, reason) !->
+						if connection_retry
+							--connection_retry
+							console.log 'Connection failed with code ' + reason + ', retry in 5s...'
+							setTimeout (!->
+								console.log 'Connecting...'
+								node_3.connect_to(node_3_real_seed, node_1_real_public_key, application, node_1_secret, 1)
+							), 5000
+							return
 						t.fail('Connection failed with code ' + reason)
 
 						chat_node_1.destroy()

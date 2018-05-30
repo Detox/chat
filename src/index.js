@@ -368,38 +368,6 @@
       secret = payload.subarray(ID_LENGTH);
       return [public_key, secret];
     }
-    /**
-     * Encodes ID, host and port of bootstrap node into base58 string with built-in checksum
-     *
-     * @param {string} id
-     * @param {string} host
-     * @param {number} port
-     *
-     * @return {string}
-     */
-    function bootstrap_node_encode(id, host, port){
-      return base58_check_encode(concat_arrays([hex2array(id), string2array(host), new Uint8Array(Uint16Array.of(port).buffer)]));
-    }
-    /**
-     * Decodes encoded ID, host and port from base58 string and checks built-in checksum
-     *
-     * @param {string} string
-     *
-     * @return {!Array} [id, host, port]
-     *
-     * @throws {Error} When checksum or bootstrap node information is not correct
-     */
-    function bootstrap_node_decode(string){
-      var payload, id, host, port;
-      payload = base58_check_decode(string);
-      if (payload.length < ID_LENGTH + 1 + 2) {
-        throw new Error('Incorrect bootstrap node information');
-      }
-      id = array2hex(payload.subarray(0, ID_LENGTH));
-      host = array2string(payload.subarray(ID_LENGTH, -2));
-      port = new Uint16Array(payload.slice(-2).buffer)[0];
-      return [id, host, port];
-    }
     Object.defineProperty(Chat.prototype, 'constructor', {
       value: Chat
     });
@@ -429,9 +397,7 @@
         return random_bytes(ID_LENGTH);
       },
       'id_encode': id_encode,
-      'id_decode': id_decode,
-      'bootstrap_node_encode': bootstrap_node_encode,
-      'bootstrap_node_decode': bootstrap_node_decode
+      'id_decode': id_decode
     };
   }
   if (typeof define === 'function' && define['amd']) {
