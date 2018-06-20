@@ -118,7 +118,7 @@
           return;
         }
         return this$['fire']('introduction', data['target_id'], data['secret'], data['application']).then(function(){
-          data['number_of_intermediate_nodes'] = Math.max(this$._number_of_intermediate_nodes - 1, 1);
+          data['number_of_intermediate_nodes'] = Math.max(this$._number_of_intermediate_nodes, 1);
         });
       })['on']('data', function(real_public_key, friend_id, received_command, received_data){
         var date_sent_array, date_sent, date_written_array, date_written, text_array;
@@ -189,7 +189,7 @@
           return;
         }
         this._announced = true;
-        this._core_instance['announce'](this._real_key_seed, this._number_of_introduction_nodes, Math.max(this._number_of_intermediate_nodes - 1, 1));
+        this._core_instance['announce'](this._real_key_seed, this._number_of_introduction_nodes, this._number_of_intermediate_nodes);
       }
       /**
        * Establish connection with a friend

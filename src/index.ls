@@ -119,7 +119,7 @@ function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer)
 				)
 					return
 				@'fire'('introduction', data['target_id'], data['secret'], data['application']).then !~>
-					data['number_of_intermediate_nodes']	= Math.max(@_number_of_intermediate_nodes - 1, 1)
+					data['number_of_intermediate_nodes']	= Math.max(@_number_of_intermediate_nodes, 1)
 			)
 			.'on'('data', (real_public_key, friend_id, received_command, received_data) !~>
 				if @_destroyed || !@_is_current_chat(real_public_key)
@@ -185,11 +185,7 @@ function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer)
 			if @_announced || @_destroyed
 				return
 			@_announced	= true
-			@_core_instance['announce'](
-				@_real_key_seed
-				@_number_of_introduction_nodes
-				Math.max(@_number_of_intermediate_nodes - 1, 1)
-			)
+			@_core_instance['announce'](@_real_key_seed, @_number_of_introduction_nodes, @_number_of_intermediate_nodes)
 		/**
 		 * Establish connection with a friend
 		 *
@@ -199,13 +195,7 @@ function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer)
 		'connect_to' : (friend_id, secret) !->
 			if @_destroyed || @_connected_nodes.has(friend_id)
 				return
-			@_core_instance['connect_to'](
-				@_real_key_seed
-				friend_id
-				APPLICATION
-				secret
-				@_number_of_intermediate_nodes
-			)
+			@_core_instance['connect_to'](@_real_key_seed, friend_id, APPLICATION, secret, @_number_of_intermediate_nodes)
 		/**
 		 * Send a nickname to a friend
 		 *
