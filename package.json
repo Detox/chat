@@ -26,10 +26,11 @@
 		"test"                : "tape tests/**/*.js"
 	},
 	"dependencies"    : {
-		"@detox/core"   : "^0.20.0",
-		"@detox/crypto" : "^0.7.1",
-		"@detox/utils"  : "^1.10.0",
-		"async-eventer" : "^1.1.7"
+		"@detox/core"        : "^0.20.0",
+		"@detox/crypto"      : "^0.7.1",
+		"@detox/simple-peer" : "^9.1.2",
+		"@detox/utils"       : "^1.10.0",
+		"async-eventer"      : "^1.1.7"
 	},
 	"devDependencies" : {
 		"@detox/simple-peer-mock" : "github:Detox/simple-peer-mock",

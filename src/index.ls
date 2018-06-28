@@ -4,7 +4,7 @@
  * @license 0BSD
  */
 /*
- * Implements version 0.2.0 of the specification
+ * Implements version ? of the specification
  */
 const COMMAND_DIRECT_CONNECTION_SDP	= 0
 const COMMAND_SECRET				= 1
@@ -12,6 +12,10 @@ const COMMAND_SECRET_RECEIVED		= 2
 const COMMAND_NICKNAME				= 3
 const COMMAND_TEXT_MESSAGE			= 4
 const COMMAND_TEXT_MESSAGE_RECEIVED	= 5
+const COMMAND_CALL_START			= 6
+const COMMAND_CALL_ACCEPT			= 7
+const COMMAND_CALL_REJECT			= 8
+# TODO: Design file transfers commands
 const CUSTOM_COMMANDS_OFFSET		= 64 # 6..63 are also reserved for future use, everything above is available for the user
 
 # TODO: Separate set of commands for direct connections (chat, file transfers, calls, etc.)
@@ -38,7 +42,7 @@ function date_to_array (number)
 	view.setFloat64(0, number, false)
 	array
 
-function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer)
+function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer, simple-peer)
 	random_bytes		= detox-utils['random_bytes']
 	string2array		= detox-utils['string2array']
 	array2string		= detox-utils['array2string']
@@ -56,16 +60,17 @@ function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer)
 	/**
 	 * @constructor
 	 *
-	 * @param {!Object}		core_instance					Detox core instance
-	 * @param {Uint8Array=}	real_key_seed					Seed used to generate real long-term keypair (if not specified - random one is used)
-	 * @param {number=}		number_of_introduction_nodes	Number of introduction nodes used for announcement to the network
-	 * @param {number=}		number_of_intermediate_nodes	How many hops should be made when making connections
+	 * @param {!Object}			core_instance					Detox core instance
+	 * @param {Uint8Array=}		real_key_seed					Seed used to generate real long-term keypair (if not specified - random one is used)
+	 * @param {number=}			number_of_introduction_nodes	Number of introduction nodes used for announcement to the network
+	 * @param {number=}			number_of_intermediate_nodes	How many hops should be made when making connections
+	 * @param {!Array<!Object>}	ice_servers
 	 *
 	 * @return {!Chat}
 	 */
-	!function Chat (core_instance, real_key_seed = null, number_of_introduction_nodes = 3, number_of_intermediate_nodes = 3)
+	!function Chat (core_instance, real_key_seed = null, number_of_introduction_nodes = 3, number_of_intermediate_nodes = 3, ice_servers = [])
 		if !(@ instanceof Chat)
-			return new Chat(core_instance, real_key_seed, number_of_introduction_nodes, number_of_intermediate_nodes)
+			return new Chat(core_instance, real_key_seed, number_of_introduction_nodes, number_of_intermediate_nodes, ice_servers)
 		async-eventer.call(@)
 
 		@_core_instance					= core_instance
@@ -75,11 +80,14 @@ function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer)
 		@_number_of_introduction_nodes	= number_of_introduction_nodes
 		@_number_of_intermediate_nodes	= number_of_intermediate_nodes
 		@_max_data_size					= @_core_instance['get_max_data_size']()
+		@_ice_servers					= ice_servers
 
 		@_connected_nodes					= ArraySet()
 		@_connection_secret_updated_local	= ArraySet()
 		@_connection_secret_updated_remote	= ArraySet()
 		@_last_date_sent					= 0
+		@_direct_connections				= ArrayMap()
+		@_direct_connections_in_progress	= ArrayMap()
 
 		@_core_instance
 			.'once'('announced', (real_public_key) !~>
@@ -132,8 +140,28 @@ function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer)
 					return
 				switch received_command
 					case COMMAND_DIRECT_CONNECTION_SDP
-						# TODO
-						void
+						target_command	= received_data[0]
+						# Only allow commands that start a call or accept a call
+						# TODO: Allow more commands in future
+						if !(target_command in [COMMAND_CALL_START, COMMAND_CALL_ACCEPT])
+							return
+						sdp	= received_data.subarray(1)
+						switch target_command
+							case COMMAND_CALL_START
+								data	=
+									'stream'	: null
+								@'fire'('start_call', data).then !~>
+									# At least one media stream is required in order to accept a call
+									if data['stream'] instanceof MediaStream
+										@_accept_direct_connection(friend_id, COMMAND_CALL_ACCEPT, sdp)
+										# TODO: Handle connection establishing and fire corresponding event, design addition of audio/video streams and handling streams from the other side
+									else
+										@_send(friend_id, COMMAND_CALL_REJECT, new Uint8Array(0))
+							case COMMAND_CALL_ACCEPT
+								in_progress_connection_callback	= @_direct_connections_in_progress.get(friend_id)
+								if in_progress_connection_callback
+									in_progress_connection_callback(friend_id, sdp)
+								@'fire'('call_accepted', friend_id)
 					case COMMAND_SECRET
 						if received_data.length != ID_LENGTH
 							return
@@ -161,6 +189,8 @@ function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer)
 						@'fire'('text_message', friend_id, date_sent, date_written, array2string(text_array), text_array)
 					case COMMAND_TEXT_MESSAGE_RECEIVED
 						@'fire'('text_message_received', friend_id, date_to_number(received_data))
+					case COMMAND_CALL_REJECT
+						@'fire'('call_rejected', friend_id)
 					else
 						if received_command < CUSTOM_COMMANDS_OFFSET
 							return
@@ -247,6 +277,13 @@ function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer)
 			@_send(friend_id, COMMAND_TEXT_MESSAGE, data)
 			date_sent
 		/**
+		 * @param {!Uint8Array}		friend_id
+		 * @param {!MediaStream}	stream		At least one media stream is required in order to start a call
+		 */
+		'start_call' : (friend_id, stream) !->
+			@_initiate_direct_connection(friend_id, COMMAND_CALL_START)
+			# TODO: Handle connection establishing and fire corresponding event, design addition of audio/video streams and handling streams from the other side
+		/**
 		 * Send custom command
 		 *
 		 * @param {!Uint8Array}	friend_id	Ed25519 public key of a friend
@@ -283,6 +320,101 @@ function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer)
 		 */
 		_send : (friend_id, command, data) !->
 			@_core_instance['send_to'](@_real_public_key, friend_id, command, data)
+		/**
+		 * @param {!Uint8Array}	friend_id
+		 * @param {number}		command
+		 * @param {!Uint8Array}	sdp
+		 */
+		_send_direct_connection_command : (friend_id, command, sdp) !~>
+			@_send(friend_id, COMMAND_DIRECT_CONNECTION_SDP, concat_arrays([command, sdp]))
+		/**
+		 * @param {!Uint8Array}	friend_id
+		 * @param {number}		command
+		 */
+		_initiate_direct_connection : (friend_id, command) !->
+			@_create_direct_connection(friend_id, true, (instance) !~>
+				instance['on']('signal', (signal) !~>
+					sdp	= string2array(signal['sdp'])
+					@_send_direct_connection_command(friend_id, command, sdp)
+					@_direct_connections_in_progress.set(friend_id, (sdp) !~>
+						instance['signal'](
+							'type'	: 'answer'
+							'sdp'	: array2string(sdp)
+						)
+						@_direct_connections_in_progress.delete(friend_id)
+					)
+				)
+			)
+		/**
+		 * @param {!Uint8Array}	friend_id
+		 * @param {number}		command
+		 * @param {Uint8Array}	sdp
+		 */
+		_accept_direct_connection : (friend_id, command, sdp) !->
+			@_create_direct_connection(friend_id, false, (instance) !~>
+				instance
+					.'on'('signal', (signal) !~>
+						sdp	= string2array(signal['sdp'])
+						@_send_direct_connection_command(friend_id, command, sdp)
+					)
+					.'signal'(
+						'type'	: 'offer'
+						'sdp'	: array2string(sdp)
+					)
+			)
+		/**
+		 * @param {!Uint8Array}	friend_id
+		 * @param {boolean}		initiator
+		 * @param {!Function}	callback	Will be called with instance as argument if connection was not discarded
+		 *
+		 * @return {!Promise} Will resolve with `simple-peer` instance when connection is established or rejected if connection fails
+		 */
+		_create_direct_connection : (friend_id, initiator, callback) -> # TODO: Do we really need to return promise here?
+			# Check for race condition
+			promise	= @_direct_connections.get(friend_id)
+			if promise
+				for item, key in @_real_public_key
+					if item == friend_id[key]
+						continue
+					if item > friend_id[key]
+						# If this node's public_key if bigger, then connection initiated by this node will win and the other side will
+						# discard its initiated connection
+						return promise
+					else
+						# Otherwise our connection is discarded and we proceed with connection initiated by the other side
+						break
+			promise	= new Promise (resolve, reject) !->
+				instance	= simple-peer(
+					'config'	:
+						'iceServers'	: @_ice_servers
+					'initiator'	: initiator
+					'trickle'	: false
+				)
+					.'on'('connect', !->
+						resolve(instance)
+					)
+					.'on'('close', !~>
+						new_promise	= @_direct_connections.get(friend_id)
+						# Confirm that connection was not discarded by race condition
+						if @_direct_connections.get(friend_id) == promise
+							@_direct_connections.delete(friend_id)
+							@_direct_connections_in_progress.delete(friend_id)
+						# If connection was discarded by race condition and resolve with different instance instead
+						else if new_promise instanceof Promise && new_promise != promise
+							new_promise.then(resolve)
+						else
+							reject()
+					)
+					.'on'('error', (error) !->
+						# Ignore Ice errors, since they can happen quite often and are not too useful
+						if error['code'] == 'ERR_ICE_CONNECTION_FAILURE'
+							return
+						error_handler(error)
+					)
+				@_direct_connections.set(friend_id, promise)
+				@_direct_connections_in_progress.delete(friend_id)
+				callback(instance)
+
 
 	Chat:: = Object.assign(Object.create(async-eventer::), Chat::)
 
@@ -364,10 +496,10 @@ function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer)
 
 if typeof define == 'function' && define['amd']
 	# AMD
-	define(['@detox/core', '@detox/crypto', '@detox/utils', 'async-eventer'], Wrapper)
+	define(['@detox/core', '@detox/crypto', '@detox/utils', 'async-eventer', '@detox/simple-peer'], Wrapper)
 else if typeof exports == 'object'
 	# CommonJS
-	module.exports = Wrapper(require('@detox/core'), require('@detox/crypto'), require('@detox/utils'), require('async-eventer'))
+	module.exports = Wrapper(require('@detox/core'), require('@detox/crypto'), require('@detox/utils'), require('async-eventer'), require('@detox/simple-peer'))
 else
 	# Browser globals
-	@'detox_chat' = Wrapper(@'detox_core', @'detox_crypto', @'detox_utils', @'async_eventer')
+	@'detox_chat' = Wrapper(@'detox_core', @'detox_crypto', @'detox_utils', @'async_eventer', @'SimplePeer')

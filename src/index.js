@@ -6,15 +6,18 @@
  */
 (function(){
   /*
-   * Implements version 0.2.0 of the specification
+   * Implements version ? of the specification
    */
-  var COMMAND_DIRECT_CONNECTION_SDP, COMMAND_SECRET, COMMAND_SECRET_RECEIVED, COMMAND_NICKNAME, COMMAND_TEXT_MESSAGE, COMMAND_TEXT_MESSAGE_RECEIVED, CUSTOM_COMMANDS_OFFSET, ID_LENGTH;
+  var COMMAND_DIRECT_CONNECTION_SDP, COMMAND_SECRET, COMMAND_SECRET_RECEIVED, COMMAND_NICKNAME, COMMAND_TEXT_MESSAGE, COMMAND_TEXT_MESSAGE_RECEIVED, COMMAND_CALL_START, COMMAND_CALL_ACCEPT, COMMAND_CALL_REJECT, CUSTOM_COMMANDS_OFFSET, ID_LENGTH;
   COMMAND_DIRECT_CONNECTION_SDP = 0;
   COMMAND_SECRET = 1;
   COMMAND_SECRET_RECEIVED = 2;
   COMMAND_NICKNAME = 3;
   COMMAND_TEXT_MESSAGE = 4;
   COMMAND_TEXT_MESSAGE_RECEIVED = 5;
+  COMMAND_CALL_START = 6;
+  COMMAND_CALL_ACCEPT = 7;
+  COMMAND_CALL_REJECT = 8;
   CUSTOM_COMMANDS_OFFSET = 64;
   ID_LENGTH = 32;
   /**
@@ -39,8 +42,8 @@
     view.setFloat64(0, number, false);
     return array;
   }
-  function Wrapper(detoxCore, detoxCrypto, detoxUtils, asyncEventer){
-    var random_bytes, string2array, array2string, hex2array, array2hex, are_arrays_equal, concat_arrays, error_handler, ArraySet, base58_encode, base58_decode, blake2b_256, APPLICATION;
+  function Wrapper(detoxCore, detoxCrypto, detoxUtils, asyncEventer, simplePeer){
+    var random_bytes, string2array, array2string, hex2array, array2hex, are_arrays_equal, concat_arrays, error_handler, ArraySet, base58_encode, base58_decode, blake2b_256, APPLICATION, this$ = this;
     random_bytes = detoxUtils['random_bytes'];
     string2array = detoxUtils['string2array'];
     array2string = detoxUtils['array2string'];
@@ -57,20 +60,22 @@
     /**
      * @constructor
      *
-     * @param {!Object}		core_instance					Detox core instance
-     * @param {Uint8Array=}	real_key_seed					Seed used to generate real long-term keypair (if not specified - random one is used)
-     * @param {number=}		number_of_introduction_nodes	Number of introduction nodes used for announcement to the network
-     * @param {number=}		number_of_intermediate_nodes	How many hops should be made when making connections
+     * @param {!Object}			core_instance					Detox core instance
+     * @param {Uint8Array=}		real_key_seed					Seed used to generate real long-term keypair (if not specified - random one is used)
+     * @param {number=}			number_of_introduction_nodes	Number of introduction nodes used for announcement to the network
+     * @param {number=}			number_of_intermediate_nodes	How many hops should be made when making connections
+     * @param {!Array<!Object>}	ice_servers
      *
      * @return {!Chat}
      */
-    function Chat(core_instance, real_key_seed, number_of_introduction_nodes, number_of_intermediate_nodes){
+    function Chat(core_instance, real_key_seed, number_of_introduction_nodes, number_of_intermediate_nodes, ice_servers){
       var this$ = this;
       real_key_seed == null && (real_key_seed = null);
       number_of_introduction_nodes == null && (number_of_introduction_nodes = 3);
       number_of_intermediate_nodes == null && (number_of_intermediate_nodes = 3);
+      ice_servers == null && (ice_servers = []);
       if (!(this instanceof Chat)) {
-        return new Chat(core_instance, real_key_seed, number_of_introduction_nodes, number_of_intermediate_nodes);
+        return new Chat(core_instance, real_key_seed, number_of_introduction_nodes, number_of_intermediate_nodes, ice_servers);
       }
       asyncEventer.call(this);
       this._core_instance = core_instance;
@@ -80,10 +85,13 @@
       this._number_of_introduction_nodes = number_of_introduction_nodes;
       this._number_of_intermediate_nodes = number_of_intermediate_nodes;
       this._max_data_size = this._core_instance['get_max_data_size']();
+      this._ice_servers = ice_servers;
       this._connected_nodes = ArraySet();
       this._connection_secret_updated_local = ArraySet();
       this._connection_secret_updated_remote = ArraySet();
       this._last_date_sent = 0;
+      this._direct_connections = ArrayMap();
+      this._direct_connections_in_progress = ArrayMap();
       this._core_instance['once']('announced', function(real_public_key){
         if (this$._destroyed || !this$._is_current_chat(real_public_key)) {
           return;
@@ -121,7 +129,7 @@
           data['number_of_intermediate_nodes'] = Math.max(this$._number_of_intermediate_nodes, 1);
         });
       })['on']('data', function(real_public_key, friend_id, received_command, received_data){
-        var date_sent_array, date_sent, date_written_array, date_written, text_array;
+        var target_command, sdp, data, in_progress_connection_callback, date_sent_array, date_sent, date_written_array, date_written, text_array;
         if (this$._destroyed || !this$._is_current_chat(real_public_key)) {
           return;
         }
@@ -130,6 +138,31 @@
         }
         switch (received_command) {
         case COMMAND_DIRECT_CONNECTION_SDP:
+          target_command = received_data[0];
+          if (!(target_command === COMMAND_CALL_START || target_command === COMMAND_CALL_ACCEPT)) {
+            return;
+          }
+          sdp = received_data.subarray(1);
+          switch (target_command) {
+          case COMMAND_CALL_START:
+            data = {
+              'stream': null
+            };
+            this$['fire']('start_call', data).then(function(){
+              if (data['stream'] instanceof MediaStream) {
+                this$._accept_direct_connection(friend_id, COMMAND_CALL_ACCEPT, sdp);
+              } else {
+                this$._send(friend_id, COMMAND_CALL_REJECT, new Uint8Array(0));
+              }
+            });
+            break;
+          case COMMAND_CALL_ACCEPT:
+            in_progress_connection_callback = this$._direct_connections_in_progress.get(friend_id);
+            if (in_progress_connection_callback) {
+              in_progress_connection_callback(friend_id, sdp);
+            }
+            this$['fire']('call_accepted', friend_id);
+          }
           break;
         case COMMAND_SECRET:
           if (received_data.length !== ID_LENGTH) {
@@ -163,6 +196,9 @@
           break;
         case COMMAND_TEXT_MESSAGE_RECEIVED:
           this$['fire']('text_message_received', friend_id, date_to_number(received_data));
+          break;
+        case COMMAND_CALL_REJECT:
+          this$['fire']('call_rejected', friend_id);
           break;
         default:
           if (received_command < CUSTOM_COMMANDS_OFFSET) {
@@ -267,6 +303,13 @@
         return date_sent;
       }
       /**
+       * @param {!Uint8Array}		friend_id
+       * @param {!MediaStream}	stream		At least one media stream is required in order to start a call
+       */,
+      'start_call': function(friend_id, stream){
+        this._initiate_direct_connection(friend_id, COMMAND_CALL_START);
+      }
+      /**
        * Send custom command
        *
        * @param {!Uint8Array}	friend_id	Ed25519 public key of a friend
@@ -308,6 +351,109 @@
        */,
       _send: function(friend_id, command, data){
         this._core_instance['send_to'](this._real_public_key, friend_id, command, data);
+      }
+      /**
+       * @param {!Uint8Array}	friend_id
+       * @param {number}		command
+       * @param {!Uint8Array}	sdp
+       */,
+      _send_direct_connection_command: function(friend_id, command, sdp){
+        this$._send(friend_id, COMMAND_DIRECT_CONNECTION_SDP, concat_arrays([command, sdp]));
+      }
+      /**
+       * @param {!Uint8Array}	friend_id
+       * @param {number}		command
+       */,
+      _initiate_direct_connection: function(friend_id, command){
+        var this$ = this;
+        this._create_direct_connection(friend_id, true, function(instance){
+          instance['on']('signal', function(signal){
+            var sdp;
+            sdp = string2array(signal['sdp']);
+            this$._send_direct_connection_command(friend_id, command, sdp);
+            this$._direct_connections_in_progress.set(friend_id, function(sdp){
+              instance['signal']({
+                'type': 'answer',
+                'sdp': array2string(sdp)
+              });
+              this$._direct_connections_in_progress['delete'](friend_id);
+            });
+          });
+        });
+      }
+      /**
+       * @param {!Uint8Array}	friend_id
+       * @param {number}		command
+       * @param {Uint8Array}	sdp
+       */,
+      _accept_direct_connection: function(friend_id, command, sdp){
+        var this$ = this;
+        this._create_direct_connection(friend_id, false, function(instance){
+          instance['on']('signal', function(signal){
+            var sdp;
+            sdp = string2array(signal['sdp']);
+            this$._send_direct_connection_command(friend_id, command, sdp);
+          })['signal']({
+            'type': 'offer',
+            'sdp': array2string(sdp)
+          });
+        });
+      }
+      /**
+       * @param {!Uint8Array}	friend_id
+       * @param {boolean}		initiator
+       * @param {!Function}	callback	Will be called with instance as argument if connection was not discarded
+       *
+       * @return {!Promise} Will resolve with `simple-peer` instance when connection is established or rejected if connection fails
+       */,
+      _create_direct_connection: function(friend_id, initiator, callback){
+        var promise, i$, ref$, len$, key, item;
+        promise = this._direct_connections.get(friend_id);
+        if (promise) {
+          for (i$ = 0, len$ = (ref$ = this._real_public_key).length; i$ < len$; ++i$) {
+            key = i$;
+            item = ref$[i$];
+            if (item === friend_id[key]) {
+              continue;
+            }
+            if (item > friend_id[key]) {
+              return promise;
+            } else {
+              break;
+            }
+          }
+        }
+        return promise = new Promise(function(resolve, reject){
+          var instance, this$ = this;
+          instance = simplePeer({
+            'config': {
+              'iceServers': this._ice_servers
+            },
+            'initiator': initiator,
+            'trickle': false
+          })['on']('connect', function(){
+            resolve(instance);
+          })['on']('close', function(){
+            var new_promise;
+            new_promise = this$._direct_connections.get(friend_id);
+            if (this$._direct_connections.get(friend_id) === promise) {
+              this$._direct_connections['delete'](friend_id);
+              this$._direct_connections_in_progress['delete'](friend_id);
+            } else if (new_promise instanceof Promise && new_promise !== promise) {
+              new_promise.then(resolve);
+            } else {
+              reject();
+            }
+          })['on']('error', function(error){
+            if (error['code'] === 'ERR_ICE_CONNECTION_FAILURE') {
+              return;
+            }
+            error_handler(error);
+          });
+          this._direct_connections.set(friend_id, promise);
+          this._direct_connections_in_progress['delete'](friend_id);
+          callback(instance);
+        });
       }
     };
     Chat.prototype = Object.assign(Object.create(asyncEventer.prototype), Chat.prototype);
@@ -401,10 +547,10 @@
     };
   }
   if (typeof define === 'function' && define['amd']) {
-    define(['@detox/core', '@detox/crypto', '@detox/utils', 'async-eventer'], Wrapper);
+    define(['@detox/core', '@detox/crypto', '@detox/utils', 'async-eventer', '@detox/simple-peer'], Wrapper);
   } else if (typeof exports === 'object') {
-    module.exports = Wrapper(require('@detox/core'), require('@detox/crypto'), require('@detox/utils'), require('async-eventer'));
+    module.exports = Wrapper(require('@detox/core'), require('@detox/crypto'), require('@detox/utils'), require('async-eventer'), require('@detox/simple-peer'));
   } else {
-    this['detox_chat'] = Wrapper(this['detox_core'], this['detox_crypto'], this['detox_utils'], this['async_eventer']);
+    this['detox_chat'] = Wrapper(this['detox_core'], this['detox_crypto'], this['detox_utils'], this['async_eventer'], this['SimplePeer']);
   }
 }).call(this);
