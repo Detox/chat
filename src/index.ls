@@ -15,12 +15,14 @@ const COMMAND_TEXT_MESSAGE_RECEIVED	= 5
 const COMMAND_CALL_START			= 6
 const COMMAND_CALL_ACCEPT			= 7
 const COMMAND_CALL_REJECT			= 8
+const COMMAND_CALL_END				= 9
 # TODO: Design file transfers commands
 const CUSTOM_COMMANDS_OFFSET		= 64 # 6..63 are also reserved for future use, everything above is available for the user
 
-# TODO: Separate set of commands for direct connections (chat, file transfers, calls, etc.)
-
 const ID_LENGTH	= 32
+
+# Standard timeout for SDP
+const WEBRTC_CONNECTION_TIMEOUT = 30
 
 /**
  * @param {!Uint8Array} array
@@ -51,9 +53,11 @@ function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer, simple-p
 	are_arrays_equal	= detox-utils['are_arrays_equal']
 	concat_arrays		= detox-utils['concat_arrays']
 	error_handler		= detox-utils['error_handler']
+	ArrayMap			= detox-utils['ArrayMap']
 	ArraySet			= detox-utils['ArraySet']
 	base58_encode		= detox-utils['base58_encode']
 	base58_decode		= detox-utils['base58_decode']
+	timeoutSet			= detox-utils['timeoutSet']
 	blake2b_256			= detox-crypto['blake2b_256']
 
 	const APPLICATION	= string2array('detox-chat-v0')
@@ -153,8 +157,9 @@ function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer, simple-p
 								@'fire'('start_call', data).then !~>
 									# At least one media stream is required in order to accept a call
 									if data['stream'] instanceof MediaStream
-										@_accept_direct_connection(friend_id, COMMAND_CALL_ACCEPT, sdp)
-										# TODO: Handle connection establishing and fire corresponding event, design addition of audio/video streams and handling streams from the other side
+										@_handle_call_connection(
+											@_accept_direct_connection(friend_id, COMMAND_CALL_ACCEPT, sdp)
+										)
 									else
 										@_send(friend_id, COMMAND_CALL_REJECT, new Uint8Array(0))
 							case COMMAND_CALL_ACCEPT
@@ -281,8 +286,42 @@ function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer, simple-p
 		 * @param {!MediaStream}	stream		At least one media stream is required in order to start a call
 		 */
 		'start_call' : (friend_id, stream) !->
-			@_initiate_direct_connection(friend_id, COMMAND_CALL_START)
-			# TODO: Handle connection establishing and fire corresponding event, design addition of audio/video streams and handling streams from the other side
+			@_handle_call_connection(
+				friend_id
+				@_initiate_direct_connection(friend_id, COMMAND_CALL_START)
+				stream
+			)
+		/**
+		 * @param {!Uint8Array} friend_id
+		 */
+		'end_call' : (friend_id) !->
+			# TODO: Send direct command `COMMAND_CALL_END`
+		/**
+		 * @param {!Uint8Array}		friend_id
+		 * @param {!Promise}		promise		Will resolve with `simple-peer` instance when connection is established or rejected if connection fails
+		 * @param {!MediaStream}	stream		At least one media stream is required in order to start a call
+		 */
+		_handle_call_connection : (friend_id, promise, stream) !->
+			promise
+				.then (instance) !~>
+					# TODO: This should be possible in future versions of simple-peer, but currently it will cause additional signaling that we don't handle
+					instance['addStream'](stream)
+					@'fire'('call_started', friend_id)
+					call_ended	= false
+					# TODO: Handle COMMAND_CALL_END command somehow and reflect in `call_ended`, so that event is not fired twice
+					instance
+						.'once'('close', !~>
+							if call_ended
+								return
+							call_ended	:= true
+							@'fire'('call_ended', friend_id)
+						)
+						.'on'('stream', (stream) !~>
+							@'fire'('call_stream_added', friend_id, stream)
+						)
+				.catch !~>
+					@'fire'('call_failed', friend_id)
+			# TODO: Design addition of audio/video streams/tracks (would be nice to support webcam and screen sharing at the same time)
 		/**
 		 * Send custom command
 		 *
@@ -330,30 +369,35 @@ function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer, simple-p
 		/**
 		 * @param {!Uint8Array}	friend_id
 		 * @param {number}		command
+		 *
+		 * @return {!Promise} Will resolve with `simple-peer` instance when connection is established or rejected if connection fails
 		 */
-		_initiate_direct_connection : (friend_id, command) !->
+		_initiate_direct_connection : (friend_id, command) ->
 			@_create_direct_connection(friend_id, true, (instance) !~>
-				instance['on']('signal', (signal) !~>
-					sdp	= string2array(signal['sdp'])
-					@_send_direct_connection_command(friend_id, command, sdp)
-					@_direct_connections_in_progress.set(friend_id, (sdp) !~>
-						instance['signal'](
-							'type'	: 'answer'
-							'sdp'	: array2string(sdp)
+				instance
+					.'once'('signal', (signal) !~>
+						sdp	= string2array(signal['sdp'])
+						@_send_direct_connection_command(friend_id, command, sdp)
+						@_direct_connections_in_progress.set(friend_id, (sdp) !~>
+							instance['signal'](
+								'type'	: 'answer'
+								'sdp'	: array2string(sdp)
+							)
+							@_direct_connections_in_progress.delete(friend_id)
 						)
-						@_direct_connections_in_progress.delete(friend_id)
 					)
-				)
 			)
 		/**
 		 * @param {!Uint8Array}	friend_id
 		 * @param {number}		command
 		 * @param {Uint8Array}	sdp
+		 *
+		 * @return {!Promise} Will resolve with `simple-peer` instance when connection is established or rejected if connection fails
 		 */
-		_accept_direct_connection : (friend_id, command, sdp) !->
+		_accept_direct_connection : (friend_id, command, sdp) ->
 			@_create_direct_connection(friend_id, false, (instance) !~>
 				instance
-					.'on'('signal', (signal) !~>
+					.'once'('signal', (signal) !~>
 						sdp	= string2array(signal['sdp'])
 						@_send_direct_connection_command(friend_id, command, sdp)
 					)
@@ -369,7 +413,7 @@ function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer, simple-p
 		 *
 		 * @return {!Promise} Will resolve with `simple-peer` instance when connection is established or rejected if connection fails
 		 */
-		_create_direct_connection : (friend_id, initiator, callback) -> # TODO: Do we really need to return promise here?
+		_create_direct_connection : (friend_id, initiator, callback) ->
 			# Check for race condition
 			promise	= @_direct_connections.get(friend_id)
 			if promise
@@ -384,16 +428,25 @@ function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer, simple-p
 						# Otherwise our connection is discarded and we proceed with connection initiated by the other side
 						break
 			promise	= new Promise (resolve, reject) !->
+				timeout		= timeoutSet(WEBRTC_CONNECTION_TIMEOUT, !~>
+					reject()
+				)
+				connected	= false
 				instance	= simple-peer(
 					'config'	:
 						'iceServers'	: @_ice_servers
 					'initiator'	: initiator
 					'trickle'	: false
 				)
-					.'on'('connect', !->
+					.'once'('connect', !~>
+						clearTimeout(timeout)
+						connected	:= true
+						@'fire'('direct_connection_opened', friend_id)
 						resolve(instance)
 					)
-					.'on'('close', !~>
+					.'once'('close', !~>
+						if connected
+							@'fire'('direct_connection_closed', friend_id)
 						new_promise	= @_direct_connections.get(friend_id)
 						# Confirm that connection was not discarded by race condition
 						if @_direct_connections.get(friend_id) == promise
@@ -410,6 +463,9 @@ function Wrapper (detox-core, detox-crypto, detox-utils, async-eventer, simple-p
 						if error['code'] == 'ERR_ICE_CONNECTION_FAILURE'
 							return
 						error_handler(error)
+					)
+					.'on'('data', (data) !~>
+						# TODO: Handle direct commands
 					)
 				@_direct_connections.set(friend_id, promise)
 				@_direct_connections_in_progress.delete(friend_id)

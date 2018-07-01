@@ -8,7 +8,7 @@
   /*
    * Implements version ? of the specification
    */
-  var COMMAND_DIRECT_CONNECTION_SDP, COMMAND_SECRET, COMMAND_SECRET_RECEIVED, COMMAND_NICKNAME, COMMAND_TEXT_MESSAGE, COMMAND_TEXT_MESSAGE_RECEIVED, COMMAND_CALL_START, COMMAND_CALL_ACCEPT, COMMAND_CALL_REJECT, CUSTOM_COMMANDS_OFFSET, ID_LENGTH;
+  var COMMAND_DIRECT_CONNECTION_SDP, COMMAND_SECRET, COMMAND_SECRET_RECEIVED, COMMAND_NICKNAME, COMMAND_TEXT_MESSAGE, COMMAND_TEXT_MESSAGE_RECEIVED, COMMAND_CALL_START, COMMAND_CALL_ACCEPT, COMMAND_CALL_REJECT, COMMAND_CALL_END, CUSTOM_COMMANDS_OFFSET, ID_LENGTH, WEBRTC_CONNECTION_TIMEOUT;
   COMMAND_DIRECT_CONNECTION_SDP = 0;
   COMMAND_SECRET = 1;
   COMMAND_SECRET_RECEIVED = 2;
@@ -18,8 +18,10 @@
   COMMAND_CALL_START = 6;
   COMMAND_CALL_ACCEPT = 7;
   COMMAND_CALL_REJECT = 8;
+  COMMAND_CALL_END = 9;
   CUSTOM_COMMANDS_OFFSET = 64;
   ID_LENGTH = 32;
+  WEBRTC_CONNECTION_TIMEOUT = 30;
   /**
    * @param {!Uint8Array} array
    *
@@ -43,7 +45,7 @@
     return array;
   }
   function Wrapper(detoxCore, detoxCrypto, detoxUtils, asyncEventer, simplePeer){
-    var random_bytes, string2array, array2string, hex2array, array2hex, are_arrays_equal, concat_arrays, error_handler, ArraySet, base58_encode, base58_decode, blake2b_256, APPLICATION, this$ = this;
+    var random_bytes, string2array, array2string, hex2array, array2hex, are_arrays_equal, concat_arrays, error_handler, ArrayMap, ArraySet, base58_encode, base58_decode, timeoutSet, blake2b_256, APPLICATION, this$ = this;
     random_bytes = detoxUtils['random_bytes'];
     string2array = detoxUtils['string2array'];
     array2string = detoxUtils['array2string'];
@@ -52,9 +54,11 @@
     are_arrays_equal = detoxUtils['are_arrays_equal'];
     concat_arrays = detoxUtils['concat_arrays'];
     error_handler = detoxUtils['error_handler'];
+    ArrayMap = detoxUtils['ArrayMap'];
     ArraySet = detoxUtils['ArraySet'];
     base58_encode = detoxUtils['base58_encode'];
     base58_decode = detoxUtils['base58_decode'];
+    timeoutSet = detoxUtils['timeoutSet'];
     blake2b_256 = detoxCrypto['blake2b_256'];
     APPLICATION = string2array('detox-chat-v0');
     /**
@@ -150,7 +154,7 @@
             };
             this$['fire']('start_call', data).then(function(){
               if (data['stream'] instanceof MediaStream) {
-                this$._accept_direct_connection(friend_id, COMMAND_CALL_ACCEPT, sdp);
+                this$._handle_call_connection(this$._accept_direct_connection(friend_id, COMMAND_CALL_ACCEPT, sdp));
               } else {
                 this$._send(friend_id, COMMAND_CALL_REJECT, new Uint8Array(0));
               }
@@ -307,7 +311,36 @@
        * @param {!MediaStream}	stream		At least one media stream is required in order to start a call
        */,
       'start_call': function(friend_id, stream){
-        this._initiate_direct_connection(friend_id, COMMAND_CALL_START);
+        this._handle_call_connection(friend_id, this._initiate_direct_connection(friend_id, COMMAND_CALL_START), stream);
+      }
+      /**
+       * @param {!Uint8Array} friend_id
+       */,
+      'end_call': function(friend_id){}
+      /**
+       * @param {!Uint8Array}		friend_id
+       * @param {!Promise}		promise		Will resolve with `simple-peer` instance when connection is established or rejected if connection fails
+       * @param {!MediaStream}	stream		At least one media stream is required in order to start a call
+       */,
+      _handle_call_connection: function(friend_id, promise, stream){
+        var this$ = this;
+        promise.then(function(instance){
+          var call_ended;
+          instance['addStream'](stream);
+          this$['fire']('call_started', friend_id);
+          call_ended = false;
+          instance['once']('close', function(){
+            if (call_ended) {
+              return;
+            }
+            call_ended = true;
+            this$['fire']('call_ended', friend_id);
+          })['on']('stream', function(stream){
+            this$['fire']('call_stream_added', friend_id, stream);
+          });
+        })['catch'](function(){
+          this$['fire']('call_failed', friend_id);
+        });
       }
       /**
        * Send custom command
@@ -363,11 +396,13 @@
       /**
        * @param {!Uint8Array}	friend_id
        * @param {number}		command
+       *
+       * @return {!Promise} Will resolve with `simple-peer` instance when connection is established or rejected if connection fails
        */,
       _initiate_direct_connection: function(friend_id, command){
         var this$ = this;
-        this._create_direct_connection(friend_id, true, function(instance){
-          instance['on']('signal', function(signal){
+        return this._create_direct_connection(friend_id, true, function(instance){
+          instance['once']('signal', function(signal){
             var sdp;
             sdp = string2array(signal['sdp']);
             this$._send_direct_connection_command(friend_id, command, sdp);
@@ -385,11 +420,13 @@
        * @param {!Uint8Array}	friend_id
        * @param {number}		command
        * @param {Uint8Array}	sdp
+       *
+       * @return {!Promise} Will resolve with `simple-peer` instance when connection is established or rejected if connection fails
        */,
       _accept_direct_connection: function(friend_id, command, sdp){
         var this$ = this;
-        this._create_direct_connection(friend_id, false, function(instance){
-          instance['on']('signal', function(signal){
+        return this._create_direct_connection(friend_id, false, function(instance){
+          instance['once']('signal', function(signal){
             var sdp;
             sdp = string2array(signal['sdp']);
             this$._send_direct_connection_command(friend_id, command, sdp);
@@ -424,17 +461,27 @@
           }
         }
         return promise = new Promise(function(resolve, reject){
-          var instance, this$ = this;
+          var timeout, connected, instance, this$ = this;
+          timeout = timeoutSet(WEBRTC_CONNECTION_TIMEOUT, function(){
+            reject();
+          });
+          connected = false;
           instance = simplePeer({
             'config': {
               'iceServers': this._ice_servers
             },
             'initiator': initiator,
             'trickle': false
-          })['on']('connect', function(){
+          })['once']('connect', function(){
+            clearTimeout(timeout);
+            connected = true;
+            this$['fire']('direct_connection_opened', friend_id);
             resolve(instance);
-          })['on']('close', function(){
+          })['once']('close', function(){
             var new_promise;
+            if (connected) {
+              this$['fire']('direct_connection_closed', friend_id);
+            }
             new_promise = this$._direct_connections.get(friend_id);
             if (this$._direct_connections.get(friend_id) === promise) {
               this$._direct_connections['delete'](friend_id);
@@ -449,7 +496,7 @@
               return;
             }
             error_handler(error);
-          });
+          })['on']('data', function(data){});
           this._direct_connections.set(friend_id, promise);
           this._direct_connections_in_progress['delete'](friend_id);
           callback(instance);
